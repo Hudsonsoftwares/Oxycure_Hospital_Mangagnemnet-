@@ -94,14 +94,6 @@ class HospitalPharmacySale(models.Model):
                 })
             
             record.write({"state": "posted"})
-            if record.op_id:
-                record.op_id.write({'pharmacy_completed': True})
-                pending_requests = self.env['hospital.pharmacy.request'].search([
-                    ('op_id', '=', record.op_id.id),
-                    ('status', '=', 'pending')
-                ])
-                for req in pending_requests:
-                    req.write({'status': 'dispensed'})
 
     def action_cancel(self):
         for record in self:

@@ -172,45 +172,6 @@ class HospitalBilling(models.Model):
                                     'duration': line.prescription_line_id.duration,
                                     'instructions': line.prescription_line_id.instructions,
                                 })
-                        
-                        # Automatically create a draft Direct Counter Sale
-                        existing_sale = self.env['hospital.pharmacy.sale'].search([
-                            ('billing_id', '=', record.id)
-                        ], limit=1)
-                        if not existing_sale:
-                            pharmacy_sale = self.env['hospital.pharmacy.sale'].create({
-                                'patient_id': record.patient_id.id,
-                                'op_id': record.op_id.id,
-                                'billing_id': record.id,
-                                'state': 'draft',
-                            })
-                            for line in record.bill_line_ids:
-                                if line.prescription_line_id:
-                                    today = fields.Date.today()
-                                    batch = self.env["hospital.medicine.batch"].search([
-                                        ("medicine_id", "=", line.prescription_line_id.medicine_id.id),
-                                        ("qty_remaining", ">", 0),
-                                        ("expiry_date", ">=", today)
-                                    ], order="expiry_date asc, name asc", limit=1)
-                                    
-                                    batch_id = batch.id if batch else False
-                                    price_unit = batch.selling_price if batch else (line.prescription_line_id.medicine_id.price or 0.0)
-                                    
-                                    if not batch_id:
-                                        fallback_batch = self.env["hospital.medicine.batch"].search([
-                                            ("medicine_id", "=", line.prescription_line_id.medicine_id.id)
-                                        ], limit=1)
-                                        batch_id = fallback_batch.id if fallback_batch else False
-                                        price_unit = fallback_batch.selling_price if fallback_batch else (line.prescription_line_id.medicine_id.price or 0.0)
-                                    
-                                    if batch_id:
-                                        self.env['hospital.pharmacy.sale.line'].create({
-                                            'sale_id': pharmacy_sale.id,
-                                            'medicine_id': line.prescription_line_id.medicine_id.id,
-                                            'batch_id': batch_id,
-                                            'qty': line.qty,
-                                            'price_unit': price_unit,
-                                        })
         return res
 
 

@@ -116,14 +116,6 @@ class HospitalPharmacyRequest(models.Model):
 
                 record.write({'status': 'dispensed'})
                 record.op_id.write({'pharmacy_completed': True})
-                # Auto-post/sync any draft pharmacy sales for this OP
-                draft_sales = self.env['hospital.pharmacy.sale'].search([
-                    ('op_id', '=', record.op_id.id),
-                    ('state', '=', 'draft')
-                ])
-                for sale in draft_sales:
-                    # Write state to posted directly to avoid double-deductions of stock (as action_dispense already did it)
-                    sale.write({'state': 'posted'})
 
 
 class HospitalPharmacyRequestLine(models.Model):
