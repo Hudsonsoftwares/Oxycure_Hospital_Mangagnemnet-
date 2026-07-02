@@ -99,8 +99,8 @@
                                     <field name="medicine_id" options="{'no_create': True, 'no_open': True}"/>
                                     <field name="dosage"/>
                                     <field name="duration"/>
-                                    <field name="qty"/>
                                     <field name="instructions"/>
+                                    <field name="pharmacist_instructions" readonly="1"/>
                                 </list>
                             </field>
                             <separator string="Laboratory Test Requests"/>
@@ -150,7 +150,7 @@
                 <field name="doctor_id"/>
                 <field name="priority"/>
                 <separator/>
-                <filter string="My Patients" name="my_patients_filter" domain="[('doctor_id.user_id', '=', uid)]"/>
+                <filter string="My Patients" name="my_patients_filter" domain="[('is_admin', '=', True)]"/>
                 <separator/>
                 <filter string="Waiting" name="waiting_op" domain="[('status', '=', 'waiting')]"/>
                 <filter string="Checked In" name="checked_in_op" domain="[('status', '=', 'checked_in')]"/>
@@ -194,6 +194,7 @@
         <field name="name">My Patients</field>
         <field name="res_model">hospital.op</field>
         <field name="view_mode">list,form</field>
+        <field name="domain">[('status', 'in', ('waiting', 'checked_in', 'consultation'))]</field>
         <field name="context">{'search_default_my_patients_filter': 1}</field>
         <field name="search_view_id" ref="view_hospital_op_search"/>
         <field name="help" type="html">

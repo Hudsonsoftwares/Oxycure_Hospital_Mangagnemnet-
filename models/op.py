@@ -8,6 +8,10 @@ class HospitalOp(models.Model):
     _rec_name = "op_number"
     _order = "registration_datetime desc"
 
+    _sql_constraints = [
+        ('op_number_unique', 'unique(op_number)', 'The OP Number must be unique!'),
+    ]
+
     # ==========================
     # OP Information
     # ==========================
@@ -192,6 +196,21 @@ class HospitalOp(models.Model):
     billing_completed = fields.Boolean(
         string="Billing Completed"
     )
+    is_admin = fields.Boolean(
+        compute="_compute_is_admin",
+        search="_search_is_admin"
+    )
+
+    def _compute_is_admin(self):
+        is_admin_user = self.env.user.has_group('base.group_system') or self.env.uid in (1, 2)
+        for record in self:
+            record.is_admin = is_admin_user
+
+    def _search_is_admin(self, operator, value):
+        # If admin, match all records; else match doctor's user_id
+        if self.env.user.has_group('base.group_system') or self.env.uid in (1, 2):
+            return [('id', '!=', False)]
+        return [('doctor_id.user_id', '=', self.env.user.id)]
 
     # ==========================
     # Internal Notes
@@ -365,25 +384,25 @@ class HospitalOp(models.Model):
     def _sync_medicine_billing(self):
         for record in self:
             if record.status == 'completed' and record.prescription_line_ids:
-                med_bill = self.env['hospital.billing'].search([
-                    ('op_id', '=', record.id),
-                    ('billing_type', '=', 'medicine')
+                existing_req = self.env['hospital.pharmacy.request'].search([
+                    ('op_id', '=', record.id)
                 ], limit=1)
-                if not med_bill:
-                    med_bill = self.env['hospital.billing'].create({
+                if not existing_req:
+                    existing_req = self.env['hospital.pharmacy.request'].create({
                         'op_id': record.id,
-                        'billing_type': 'medicine',
-                        'payment_status': 'draft',
+                        'status': 'draft',
                     })
                 
-                if med_bill.payment_status == 'draft':
-                    med_bill.bill_line_ids.unlink()
+                if existing_req.status == 'draft':
+                    existing_req.line_ids.unlink()
                     for line in record.prescription_line_ids:
-                        self.env['hospital.billing.line'].create({
-                            'billing_id': med_bill.id,
-                            'name': f"Medicine: {line.medicine_id.name}",
-                            'price': line.medicine_id.price or 0.0,
-                            'qty': line.qty,
+                        self.env['hospital.pharmacy.request.line'].create({
+                            'request_id': existing_req.id,
+                            'medicine_id': line.medicine_id.id,
+                            'qty': 0, # Pharmacist will specify this qty
+                            'dosage': line.dosage,
+                            'duration': line.duration,
+                            'instructions': line.instructions,
                             'prescription_line_id': line.id,
                         })
 

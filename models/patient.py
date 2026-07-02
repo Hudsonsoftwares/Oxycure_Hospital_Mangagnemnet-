@@ -7,6 +7,10 @@ class HospitalPatient(models.Model):
     _description = "Hospital Patient"
     _rec_name = "name"
 
+    _sql_constraints = [
+        ('patient_id_unique', 'unique(patient_id)', 'The Patient ID must be unique!'),
+    ]
+
     # ==========================
     # Patient Identification
     # ==========================

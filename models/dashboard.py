@@ -7,9 +7,9 @@ _logger = logging.getLogger(__name__)
 
 class HospitalDashboard(models.TransientModel):
     _name = "hospital.dashboard"
-    _description = "NovaCare Dashboard"
+    _description = "OxyCure Dashboard"
 
-    name = fields.Char(string="Title", default="NovaCare Live Dashboard")
+    name = fields.Char(string="Title", default="OxyCure Live Dashboard")
     dashboard_html = fields.Html(string="Content", compute="_compute_dashboard_html", sanitize=False)
 
     @api.model
@@ -94,7 +94,7 @@ class HospitalDashboard(models.TransientModel):
             expiring_count = len(expiring_medicines)
 
             # 11. AI Insight via Gemini API
-            ai_insight = "NovaCare AI Insight is analyzing hospital database..."
+            ai_insight = "OxyCure AI Insight is analyzing hospital database..."
             api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
             if not api_key:
                 import os
@@ -165,11 +165,11 @@ class HospitalDashboard(models.TransientModel):
 
             # Constructing Premium Dashboard HTML
             html = f"""
-            <div class="novacare-dashboard-container" style="background-color: #f8fafc; padding: 24px; font-family: 'Inter', sans-serif;">
+            <div class="oxycure-dashboard-container" style="background-color: #f8fafc; padding: 24px; font-family: 'Inter', sans-serif;">
                 
                 <!-- Dashboard Header -->
                 <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 32px; border-radius: 16px; margin-bottom: 24px; color: white; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);">
-                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">NovaCare Command Center</h1>
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">OxyCure Command Center</h1>
                     <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">Real-time clinical, operational, and financial indicators</p>
                 </div>
 

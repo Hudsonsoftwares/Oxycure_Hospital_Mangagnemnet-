@@ -7,6 +7,10 @@ class HospitalAppointment(models.Model):
     _rec_name = "appointment_no"
     _order = "appointment_date desc, appointment_time desc"
 
+    _sql_constraints = [
+        ('appointment_no_unique', 'unique(appointment_no)', 'The Appointment Number must be unique!'),
+    ]
+
     appointment_no = fields.Char(
         string="Appointment No",
         required=True,

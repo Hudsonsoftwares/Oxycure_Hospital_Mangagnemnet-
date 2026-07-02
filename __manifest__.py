@@ -1,9 +1,9 @@
 {
-    'name': 'NovaCare',
+    'name': 'OxyCure',
     'version': '18.0.1.0.0',
-    'summary': 'NovaCare Hospital Management System',
+    'summary': 'OxyCure Hospital Management System',
     'description': """
-NovaCare Hospital Management System
+OxyCure Hospital Management System
 ===================================
 Custom Hospital Management Module
 """,

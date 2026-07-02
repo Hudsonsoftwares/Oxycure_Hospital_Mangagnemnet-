@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 class HospitalPrescriptionLine(models.Model):
     _name = "hospital.prescription.line"
@@ -28,10 +28,20 @@ class HospitalPrescriptionLine(models.Model):
     )
     qty = fields.Integer(
         string="Qty",
-        default=1,
-        required=True
+        default=0
     )
     instructions = fields.Char(
         string="Instructions",
         placeholder="e.g. After Food"
     )
+    pharmacist_instructions = fields.Char(
+        string="Pharmacist Instructions",
+        compute="_compute_pharmacist_instructions"
+    )
+
+    def _compute_pharmacist_instructions(self):
+        for record in self:
+            req_line = self.env['hospital.pharmacy.request.line'].search([
+                ('prescription_line_id', '=', record.id)
+            ], limit=1)
+            record.pharmacist_instructions = req_line.pharmacist_instructions if req_line else False

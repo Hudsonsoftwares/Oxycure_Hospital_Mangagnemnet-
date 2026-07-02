@@ -36,7 +36,7 @@ class HospitalPharmacyRequest(models.Model):
     billing_id = fields.Many2one(
         "hospital.billing",
         string="Billing Invoice",
-        required=True,
+        required=False,
         ondelete="cascade"
     )
     request_datetime = fields.Datetime(
@@ -45,12 +45,14 @@ class HospitalPharmacyRequest(models.Model):
         required=True
     )
     status = fields.Selection([
-        ('pending', 'Pending'),
+        ('draft', 'Draft (Pharmacist sets Qty)'),
+        ('to_pay', 'Pending Payment'),
+        ('paid', 'Paid / Ready to Dispense'),
         ('dispensed', 'Dispensed / Completed'),
         ('cancelled', 'Cancelled')
     ],
         string="Status",
-        default="pending",
+        default="draft",
         required=True
     )
     line_ids = fields.One2many(
@@ -65,10 +67,41 @@ class HospitalPharmacyRequest(models.Model):
             vals["name"] = self.env["ir.sequence"].next_by_code("hospital.pharmacy.request") or "New"
         return super(HospitalPharmacyRequest, self).create(vals)
 
-    def action_dispense(self):
-        from odoo.exceptions import ValidationError
+    def action_send_to_billing(self):
+        from odoo.exceptions import UserError
         for record in self:
-            if record.status == 'pending':
+            if record.status != 'draft':
+                continue
+            for line in record.line_ids:
+                if line.qty <= 0:
+                    raise UserError(_("Please set a quantity greater than 0 for all medicines."))
+            
+            # Create draft billing invoice
+            bill = self.env['hospital.billing'].create({
+                'op_id': record.op_id.id,
+                'billing_type': 'medicine',
+                'payment_status': 'draft',
+            })
+            for line in record.line_ids:
+                self.env['hospital.billing.line'].create({
+                    'billing_id': bill.id,
+                    'name': f"Medicine: {line.medicine_id.name}",
+                    'price': line.medicine_id.price or 0.0,
+                    'qty': line.qty,
+                    'prescription_line_id': line.prescription_line_id.id if line.prescription_line_id else False,
+                })
+            
+            record.write({
+                'billing_id': bill.id,
+                'status': 'to_pay'
+            })
+
+    def action_dispense(self):
+        from odoo.exceptions import ValidationError, UserError
+        for record in self:
+            if record.status != 'paid':
+                raise UserError(_("Only paid pharmacy requests can be dispensed."))
+            if True: # Execute dispensing block
                 # First validate all lines have sufficient stock before doing any deduction
                 today = fields.Date.today()
                 for line in record.line_ids:
@@ -145,4 +178,13 @@ class HospitalPharmacyRequestLine(models.Model):
     )
     instructions = fields.Char(
         string="Instructions"
+    )
+    prescription_line_id = fields.Many2one(
+        "hospital.prescription.line",
+        string="Prescription Line",
+        ondelete="set null"
+    )
+    pharmacist_instructions = fields.Char(
+        string="Pharmacist Instructions",
+        placeholder="e.g. Take with warm water"
     )

@@ -148,6 +148,24 @@ class HospitalLabProcessing(models.Model):
                 if not record.date_completed:
                     record.date_completed = fields.Datetime.now()
 
+    @api.model
+    def create(self, vals):
+        record = super(HospitalLabProcessing, self).create(vals)
+        record._sync_to_request_line()
+        return record
+
+    def _sync_to_request_line(self):
+        for record in self:
+            if record.request_line_id:
+                vals = {
+                    'result_pdf': record.result_pdf,
+                    'result_pdf_name': record.result_pdf_name,
+                    'ai_summary': record.ai_summary,
+                }
+                if record.status in ('completed', 'cancelled'):
+                    vals['status'] = record.status
+                record.request_line_id.write(vals)
+
     def write(self, vals):
         if 'status' in vals:
             if vals['status'] == 'collected':
@@ -168,14 +186,7 @@ class HospitalLabProcessing(models.Model):
                         vals['process_start_datetime'] = fields.Datetime.now()
 
         res = super(HospitalLabProcessing, self).write(vals)
-
-        if 'status' in vals:
-            for record in self:
-                if record.request_line_id:
-                    if vals['status'] == 'completed':
-                        record.request_line_id.write({'status': 'completed'})
-                    elif vals['status'] == 'cancelled':
-                        record.request_line_id.write({'status': 'cancelled'})
+        self._sync_to_request_line()
         return res
 
     def action_generate_ai_summary(self):

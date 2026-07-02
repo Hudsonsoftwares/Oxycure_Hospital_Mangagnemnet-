@@ -134,31 +134,13 @@ class HospitalLabRequestLine(models.Model):
     )
     result_pdf = fields.Binary(
         string="Lab Report PDF",
-        compute="_compute_processing_results",
         readonly=True
     )
     result_pdf_name = fields.Char(
         string="PDF Filename",
-        compute="_compute_processing_results",
         readonly=True
     )
     ai_summary = fields.Text(
         string="AI Summary",
-        compute="_compute_processing_results",
         readonly=True
     )
-
-    @api.depends('status')
-    def _compute_processing_results(self):
-        for line in self:
-            processing = self.env['hospital.lab.processing'].search([
-                ('request_line_id', '=', line.id)
-            ], limit=1)
-            if processing:
-                line.result_pdf = processing.result_pdf
-                line.result_pdf_name = processing.result_pdf_name
-                line.ai_summary = processing.ai_summary
-            else:
-                line.result_pdf = False
-                line.result_pdf_name = False
-                line.ai_summary = False

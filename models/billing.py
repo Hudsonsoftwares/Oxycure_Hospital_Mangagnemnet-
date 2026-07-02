@@ -7,6 +7,10 @@ class HospitalBilling(models.Model):
     _rec_name = "name"
     _order = "id desc"
 
+    _sql_constraints = [
+        ('billing_name_unique', 'unique(name)', 'The Invoice Number must be unique!'),
+    ]
+
     name = fields.Char(
         string="Invoice Number",
         required=True,
@@ -156,11 +160,13 @@ class HospitalBilling(models.Model):
                     existing_request = self.env['hospital.pharmacy.request'].search([
                         ('billing_id', '=', record.id)
                     ], limit=1)
-                    if not existing_request:
+                    if existing_request:
+                        existing_request.write({'status': 'paid'})
+                    else:
                         pharmacy_request = self.env['hospital.pharmacy.request'].create({
                             'op_id': record.op_id.id,
                             'billing_id': record.id,
-                            'status': 'pending',
+                            'status': 'paid',
                         })
                         for line in record.bill_line_ids:
                             if line.prescription_line_id:
@@ -171,6 +177,7 @@ class HospitalBilling(models.Model):
                                     'dosage': line.prescription_line_id.dosage,
                                     'duration': line.prescription_line_id.duration,
                                     'instructions': line.prescription_line_id.instructions,
+                                    'prescription_line_id': line.prescription_line_id.id,
                                 })
         return res
 

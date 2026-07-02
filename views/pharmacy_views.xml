@@ -5,14 +5,14 @@
         <field name="name">hospital.pharmacy.request.list</field>
         <field name="model">hospital.pharmacy.request</field>
         <field name="arch" type="xml">
-            <list string="Pharmacy Requests" decoration-info="status == 'pending'" decoration-success="status == 'dispensed'" decoration-muted="status == 'cancelled'" create="false" edit="false">
+            <list string="Pharmacy Requests" decoration-info="status == 'draft'" decoration-warning="status == 'to_pay'" decoration-primary="status == 'paid'" decoration-success="status == 'dispensed'" decoration-muted="status == 'cancelled'" create="false" edit="false">
                 <field name="name"/>
                 <field name="op_id"/>
                 <field name="patient_id"/>
                 <field name="doctor_id"/>
                 <field name="billing_id"/>
                 <field name="request_datetime"/>
-                <field name="status" widget="badge" decoration-warning="status == 'pending'" decoration-success="status == 'dispensed'" decoration-danger="status == 'cancelled'"/>
+                <field name="status" widget="badge" decoration-info="status == 'draft'" decoration-warning="status == 'to_pay'" decoration-primary="status == 'paid'" decoration-success="status == 'dispensed'" decoration-danger="status == 'cancelled'"/>
             </list>
         </field>
     </record>
@@ -24,8 +24,9 @@
         <field name="arch" type="xml">
             <form string="Pharmacy Dispensing Request" create="false">
                 <header>
-                    <button name="action_dispense" type="object" string="Dispense Medicines" class="oe_highlight" invisible="status != 'pending'"/>
-                    <field name="status" widget="statusbar"/>
+                    <button name="action_send_to_billing" type="object" string="Send to Billing" class="oe_highlight" invisible="status != 'draft'"/>
+                    <button name="action_dispense" type="object" string="Dispense Medicines" class="oe_highlight" invisible="status != 'paid'"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,to_pay,paid,dispensed"/>
                 </header>
                 <sheet>
                     <widget name="web_ribbon" title="Dispensed" bg_color="text-bg-success" invisible="status != 'dispensed'"/>
@@ -47,13 +48,14 @@
                     </group>
                     <notebook>
                         <page string="Prescribed Medicines" name="medicines_tab">
-                            <field name="line_ids" readonly="1">
-                                <list>
-                                    <field name="medicine_id"/>
+                            <field name="line_ids" readonly="status != 'draft'">
+                                <list editable="bottom" create="false" delete="false">
+                                    <field name="medicine_id" readonly="1"/>
                                     <field name="qty"/>
-                                    <field name="dosage"/>
-                                    <field name="duration"/>
-                                    <field name="instructions"/>
+                                    <field name="dosage" readonly="1"/>
+                                    <field name="duration" readonly="1"/>
+                                    <field name="instructions" readonly="1"/>
+                                    <field name="pharmacist_instructions"/>
                                 </list>
                             </field>
                         </page>
@@ -117,11 +119,7 @@
               action="action_hospital_pharmacy_request"
               sequence="10"/>
 
-    <menuitem id="menu_hospital_pharmacy_sale"
-              name="Direct Sales"
-              parent="menu_hospital_pharmacy_parent"
-              action="action_hospital_pharmacy_sale"
-              sequence="15"/>
+
 
     <menuitem id="menu_hospital_patient_medicine_return"
               name="Patient Returns"

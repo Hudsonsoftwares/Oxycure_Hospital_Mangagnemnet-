@@ -148,7 +148,7 @@
 
     <!-- Main Menu Structure -->
     <menuitem id="menu_hospital_root"
-              name="NovaCare"
+              name="OxyCure"
               sequence="10"/>
 
     <menuitem id="menu_hospital_registration"
