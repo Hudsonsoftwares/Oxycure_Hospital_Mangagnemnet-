@@ -268,16 +268,6 @@ class HospitalOp(models.Model):
         record._sync_lab_request()
         record._sync_billing_invoice()
         record._sync_medicine_billing()
-        if record.billing_completed:
-            for request in record.lab_request_line_ids:
-                if request.status == 'requested':
-                    request.write({'status': 'billed'})
-                self.env['hospital.lab.processing'].create({
-                    'op_id': record.id,
-                    'test_id': request.test_id.id,
-                    'request_line_id': request.id,
-                    'status': 'pending',
-                })
         return record
 
     def _sync_lab_request(self):
@@ -302,54 +292,75 @@ class HospitalOp(models.Model):
         if self.env.context.get('no_sync_billing'):
             return
         for record in self:
-            bill = self.env['hospital.billing'].search([
+            # 1. Clean up draft billing lines whose lab request lines have been deleted
+            draft_bill = self.env['hospital.billing'].search([
                 ('op_id', '=', record.id),
                 ('payment_status', '=', 'draft'),
                 ('billing_type', '=', 'op')
             ], limit=1)
+            
+            if draft_bill:
+                # Remove billing lines referencing lab request lines no longer present
+                for bl in draft_bill.bill_line_ids:
+                    if bl.lab_line_id and bl.lab_line_id.id not in record.lab_request_line_ids.ids:
+                        bl.unlink()
+                # If draft_bill is empty, delete it
+                if not draft_bill.bill_line_ids:
+                    draft_bill.unlink()
+                    draft_bill = False
 
-            paid_bill = self.env['hospital.billing'].search([
-                ('op_id', '=', record.id),
-                ('payment_status', '=', 'paid'),
-                ('billing_type', '=', 'op')
-            ], limit=1)
+            # 2. Find lab request lines in 'requested' status that need to be billed
+            requested_lab_lines = record.lab_request_line_ids.filtered(lambda l: l.status == 'requested')
+            
+            # Find if any of these are already linked to a billing line (draft or paid)
+            billed_line_ids = self.env['hospital.billing.line'].search([
+                ('lab_line_id', 'in', requested_lab_lines.ids)
+            ]).mapped('lab_line_id').ids
+            
+            lab_lines_to_bill = requested_lab_lines.filtered(lambda l: l.id not in billed_line_ids)
+            
+            # 3. Check if consultation fee needs to be billed
+            has_consultation_fee = record.doctor_id and record.doctor_id.consultation_fee > 0.0
+            consultation_billed = False
+            if has_consultation_fee:
+                consultation_billed = bool(self.env['hospital.billing.line'].search([
+                    ('billing_id.op_id', '=', record.id),
+                    ('name', '=', f"Doctor Consultation Fee - {record.doctor_id.name}")
+                ])) or bool(self.env['hospital.billing'].search([
+                    ('appointment_id', '=', record.appointment_id.id),
+                    ('billing_type', '=', 'op')
+                ]))
+            needs_consultation_fee = has_consultation_fee and not consultation_billed
 
-            if paid_bill:
+            if not lab_lines_to_bill and not needs_consultation_fee:
                 continue
 
-            lines_data = []
-
-            if record.doctor_id and record.doctor_id.consultation_fee > 0.0:
-                lines_data.append({
-                    'name': f"Doctor Consultation Fee - {record.doctor_id.name}",
-                    'price': record.doctor_id.consultation_fee,
-                    'qty': 1,
-                })
-
-            for request_line in record.lab_request_line_ids:
-                lines_data.append({
-                    'name': f"Lab Test: {request_line.test_id.name}",
-                    'price': request_line.test_id.price or 0.0,
-                    'qty': 1,
-                    'lab_line_id': request_line.id,
-                })
-
-            if not lines_data:
-                if bill:
-                    bill.unlink()
-                continue
-
-            if not bill:
-                bill = self.env['hospital.billing'].create({
+            if not draft_bill:
+                draft_bill = self.env['hospital.billing'].create({
                     'op_id': record.id,
                     'billing_type': 'op',
+                    'payment_status': 'draft',
                 })
 
-            bill.bill_line_ids.unlink()
+            if needs_consultation_fee:
+                # Check if it's already in the draft bill
+                existing_fee_line = draft_bill.bill_line_ids.filtered(lambda l: l.name == f"Doctor Consultation Fee - {record.doctor_id.name}")
+                if not existing_fee_line:
+                    self.env['hospital.billing.line'].create({
+                        'billing_id': draft_bill.id,
+                        'name': f"Doctor Consultation Fee - {record.doctor_id.name}",
+                        'price': record.doctor_id.consultation_fee,
+                        'qty': 1,
+                    })
 
-            for line_val in lines_data:
-                line_val['billing_id'] = bill.id
-                self.env['hospital.billing.line'].create(line_val)
+            for line in lab_lines_to_bill:
+                self.env['hospital.billing.line'].create({
+                    'billing_id': draft_bill.id,
+                    'name': f"Lab Test: {line.test_id.name}",
+                    'price': line.test_id.price or 0.0,
+                    'qty': 1,
+                    'lab_line_id': line.id,
+                })
 
     def _sync_medicine_billing(self):
         for record in self:
@@ -381,21 +392,6 @@ class HospitalOp(models.Model):
         self._sync_lab_request()
         self._sync_billing_invoice()
         self._sync_medicine_billing()
-        for record in self:
-            if record.billing_completed:
-                for request in record.lab_request_line_ids:
-                    if request.status == 'requested':
-                        request.write({'status': 'billed'})
-                    existing = self.env['hospital.lab.processing'].search([
-                        ('request_line_id', '=', request.id)
-                    ])
-                    if not existing:
-                        self.env['hospital.lab.processing'].create({
-                            'op_id': record.id,
-                            'test_id': request.test_id.id,
-                            'request_line_id': request.id,
-                            'status': 'pending',
-                        })
         return res
 
     # ==========================

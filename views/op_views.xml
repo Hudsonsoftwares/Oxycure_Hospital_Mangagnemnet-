@@ -111,6 +111,7 @@
                                     <field name="status" widget="badge" decoration-warning="status == 'requested'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
                                     <field name="result_pdf_name" column_invisible="True"/>
                                     <field name="result_pdf" filename="result_pdf_name" widget="binary" readonly="1"/>
+                                    <field name="ai_summary" readonly="1"/>
                                 </list>
                             </field>
                             <group string="Follow-up Information">

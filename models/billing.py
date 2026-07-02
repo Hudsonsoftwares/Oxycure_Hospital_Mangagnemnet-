@@ -121,6 +121,19 @@ class HospitalBilling(models.Model):
                 if record.billing_type == 'op':
                     if record.op_id:
                         record.op_id.write({'billing_completed': True})
+                        for line in record.bill_line_ids:
+                            if line.lab_line_id:
+                                line.lab_line_id.write({'status': 'billed'})
+                                existing = self.env['hospital.lab.processing'].search([
+                                    ('request_line_id', '=', line.lab_line_id.id)
+                                ])
+                                if not existing:
+                                    self.env['hospital.lab.processing'].create({
+                                        'op_id': record.op_id.id,
+                                        'test_id': line.lab_line_id.test_id.id,
+                                        'request_line_id': line.lab_line_id.id,
+                                        'status': 'pending',
+                                    })
                     elif record.appointment_id:
                         existing_op = self.env['hospital.op'].search([
                             ('appointment_id', '=', record.appointment_id.id)
