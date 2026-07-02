@@ -103,7 +103,6 @@ class HospitalDashboard(models.TransientModel):
             if api_key:
                 try:
                     import requests
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {"Content-Type": "application/json"}
                     payload = {
                         "contents": [{
@@ -127,12 +126,38 @@ class HospitalDashboard(models.TransientModel):
                             ]
                         }]
                     }
-                    response = requests.post(url, json=payload, headers=headers, timeout=30)
-                    if response.status_code == 200:
-                        res_data = response.json()
-                        ai_insight = res_data['candidates'][0]['content']['parts'][0]['text']
-                    else:
-                        ai_insight = "Failed to load AI Insight (Gemini API returned error)."
+                    
+                    models_to_try = [
+                        "gemini-2.5-flash",
+                        "gemini-3.5-flash",
+                        "gemini-2.0-flash",
+                        "gemini-2.5-pro",
+                        "gemini-2.0-flash-lite",
+                        "gemini-flash-latest",
+                        "gemini-pro-latest"
+                    ]
+                    
+                    success = False
+                    last_error = "No response"
+                    for model in models_to_try:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+                        try:
+                            response = requests.post(url, json=payload, headers=headers, timeout=30)
+                            if response.status_code == 200:
+                                res_data = response.json()
+                                ai_insight = res_data['candidates'][0]['content']['parts'][0]['text']
+                                success = True
+                                break
+                            else:
+                                try:
+                                    last_error = response.json().get('error', {}).get('message', response.text)
+                                except Exception:
+                                    last_error = response.text
+                        except Exception as ex:
+                            last_error = str(ex)
+                    
+                    if not success:
+                        ai_insight = f"Failed to load AI Insight (Gemini API returned error: {last_error})."
                 except Exception as e:
                     ai_insight = f"Failed to connect to AI engine: {str(e)}"
             else:
