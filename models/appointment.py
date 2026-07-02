@@ -102,7 +102,7 @@ class HospitalAppointment(models.Model):
             vals["token_number"] = next_token
 
         record = super().create(vals)
-        if record.doctor_id and record.doctor_id.consultation_fee > 0.0:
+        if record.doctor_id:
             bill = self.env['hospital.billing'].create({
                 'appointment_id': record.id,
                 'billing_type': 'op',
@@ -111,7 +111,7 @@ class HospitalAppointment(models.Model):
             self.env['hospital.billing.line'].create({
                 'billing_id': bill.id,
                 'name': f"Doctor Consultation Fee - {record.doctor_id.name}",
-                'price': record.doctor_id.consultation_fee,
+                'price': record.doctor_id.consultation_fee or 0.0,
                 'qty': 1,
             })
         return record
@@ -127,11 +127,11 @@ class HospitalAppointment(models.Model):
                 ], limit=1)
                 if draft_bill:
                     draft_bill.bill_line_ids.unlink()
-                    if record.doctor_id and record.doctor_id.consultation_fee > 0.0:
+                    if record.doctor_id:
                         self.env['hospital.billing.line'].create({
                             'billing_id': draft_bill.id,
                             'name': f"Doctor Consultation Fee - {record.doctor_id.name}",
-                            'price': record.doctor_id.consultation_fee,
+                            'price': record.doctor_id.consultation_fee or 0.0,
                             'qty': 1,
                         })
         return res

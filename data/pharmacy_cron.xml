@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_pharmacy_alerts" model="ir.cron">
+        <field name="name">Pharmacy: Generate Stock &amp; Expiry Alerts</field>
+        <field name="model_id" ref="model_hospital_pharmacy_alert"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_generate_alerts()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

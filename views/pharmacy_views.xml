@@ -104,10 +104,100 @@
         </field>
     </record>
 
-    <!-- Pharmacy Request Menu Item -->
-    <menuitem id="menu_hospital_pharmacy_request"
+    <!-- Pharmacy Parent Menu -->
+    <menuitem id="menu_hospital_pharmacy_parent"
               name="Pharmacy"
               parent="menu_hospital_root"
-              action="action_hospital_pharmacy_request"
               sequence="28"/>
+
+    <!-- Pharmacy Sub-menus -->
+    <menuitem id="menu_hospital_pharmacy_request"
+              name="Pharmacy Requests"
+              parent="menu_hospital_pharmacy_parent"
+              action="action_hospital_pharmacy_request"
+              sequence="10"/>
+
+    <menuitem id="menu_hospital_pharmacy_sale"
+              name="Direct Sales"
+              parent="menu_hospital_pharmacy_parent"
+              action="action_hospital_pharmacy_sale"
+              sequence="15"/>
+
+    <menuitem id="menu_hospital_patient_medicine_return"
+              name="Patient Returns"
+              parent="menu_hospital_pharmacy_parent"
+              action="action_hospital_patient_medicine_return"
+              sequence="20"/>
+
+    <!-- Stock Operations Sub-menu -->
+    <menuitem id="menu_hospital_stock_operations_parent"
+              name="Stock Operations"
+              parent="menu_hospital_pharmacy_parent"
+              sequence="25"/>
+
+    <menuitem id="menu_hospital_medicine_purchase"
+              name="Purchase Orders"
+              parent="menu_hospital_stock_operations_parent"
+              action="action_hospital_medicine_purchase"
+              sequence="10"/>
+
+    <menuitem id="menu_hospital_medicine_purchase_return"
+              name="Purchase Returns"
+              parent="menu_hospital_stock_operations_parent"
+              action="action_hospital_medicine_purchase_return"
+              sequence="15"/>
+
+    <menuitem id="menu_hospital_stock_adjustment"
+              name="Stock Adjustments"
+              parent="menu_hospital_stock_operations_parent"
+              action="action_hospital_stock_adjustment"
+              sequence="20"/>
+
+    <menuitem id="menu_hospital_expired_disposal"
+              name="Disposals"
+              parent="menu_hospital_stock_operations_parent"
+              action="action_hospital_expired_disposal"
+              sequence="25"/>
+
+    <menuitem id="menu_hospital_stock_movement"
+              name="Stock Movements"
+              parent="menu_hospital_stock_operations_parent"
+              action="action_hospital_stock_movement"
+              sequence="30"/>
+
+    <!-- Configuration Sub-menu -->
+    <menuitem id="menu_hospital_pharmacy_config_parent"
+              name="Configuration"
+              parent="menu_hospital_pharmacy_parent"
+              sequence="30"/>
+
+    <menuitem id="menu_hospital_medicine"
+              name="Medicines"
+              parent="menu_hospital_pharmacy_config_parent"
+              action="action_hospital_medicine"
+              sequence="10"/>
+
+    <menuitem id="menu_hospital_medicine_category"
+              name="Medicine Categories"
+              parent="menu_hospital_pharmacy_config_parent"
+              action="action_hospital_medicine_category"
+              sequence="15"/>
+
+    <menuitem id="menu_hospital_medicine_batch"
+              name="Batches"
+              parent="menu_hospital_pharmacy_config_parent"
+              action="action_hospital_medicine_batch"
+              sequence="20"/>
+
+    <menuitem id="menu_hospital_medicine_supplier"
+              name="Suppliers"
+              parent="menu_hospital_pharmacy_config_parent"
+              action="action_hospital_medicine_supplier"
+              sequence="25"/>
+
+    <menuitem id="menu_hospital_pharmacy_alert"
+              name="Inventory Alerts"
+              parent="menu_hospital_pharmacy_config_parent"
+              action="action_hospital_pharmacy_alert"
+              sequence="30"/>
 </odoo>

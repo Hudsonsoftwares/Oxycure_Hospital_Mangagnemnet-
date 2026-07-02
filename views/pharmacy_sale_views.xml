@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pharmacy Sale List View -->
+    <record id="view_hospital_pharmacy_sale_list" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.sale.list</field>
+        <field name="model">hospital.pharmacy.sale</field>
+        <field name="arch" type="xml">
+            <list string="Pharmacy Counter Sales" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'" decoration-info="state == 'draft'">
+                <field name="name"/>
+                <field name="patient_id"/>
+                <field name="sale_date"/>
+                <field name="amount_total" sum="Total Sales"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Pharmacy Sale Form View -->
+    <record id="view_hospital_pharmacy_sale_form" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.sale.form</field>
+        <field name="model">hospital.pharmacy.sale</field>
+        <field name="arch" type="xml">
+            <form string="Pharmacy Counter Sale">
+                <header>
+                    <button name="action_post" string="Post Sale" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,posted,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="patient_id" readonly="state != 'draft'"/>
+                            <field name="sale_date" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="amount_total" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Medicines" name="sale_lines">
+                            <field name="line_ids" readonly="state != 'draft'">
+                                <list editable="bottom">
+                                    <field name="medicine_id"/>
+                                    <field name="batch_id" domain="[('medicine_id', '=', medicine_id), ('qty_remaining', '>', 0)]"/>
+                                    <field name="qty"/>
+                                    <field name="price_unit"/>
+                                    <field name="subtotal" sum="Total"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Pharmacy Sale Action -->
+    <record id="action_hospital_pharmacy_sale" model="ir.actions.act_window">
+        <field name="name">Direct Counter Sales</field>
+        <field name="res_model">hospital.pharmacy.sale</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Record a Walk-in counter sale!
+            </p>
+            <p>
+                This allows you to sell medicines directly over the counter to walk-in patients.
+            </p>
+        </field>
+    </record>
+</odoo>

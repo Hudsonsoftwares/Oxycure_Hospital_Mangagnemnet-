@@ -86,6 +86,18 @@
                                 </group>
                             </group>
                         </page>
+                        <page string="OP Visits" name="op_visits">
+                            <field name="op_ids" readonly="1">
+                                <list string="OP Visits">
+                                    <field name="op_number"/>
+                                    <field name="doctor_id"/>
+                                    <field name="registration_datetime"/>
+                                    <field name="token_number"/>
+                                    <field name="visit_type"/>
+                                    <field name="status" widget="badge" decoration-info="status == 'waiting'" decoration-primary="status == 'checked_in'" decoration-warning="status == 'consultation'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Internal Notes" name="internal_notes">
                             <field name="notes" placeholder="Add custom notes here..."/>
                         </page>

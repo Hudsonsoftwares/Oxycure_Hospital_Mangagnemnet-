@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Patient Return List View -->
+    <record id="view_hospital_patient_medicine_return_list" model="ir.ui.view">
+        <field name="name">hospital.patient.medicine.return.list</field>
+        <field name="model">hospital.patient.medicine.return</field>
+        <field name="arch" type="xml">
+            <list string="Patient Returns">
+                <field name="name"/>
+                <field name="patient_id"/>
+                <field name="medicine_id"/>
+                <field name="batch_id"/>
+                <field name="qty"/>
+                <field name="refund_amount" sum="Total Refunded"/>
+                <field name="date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Patient Return Form View -->
+    <record id="view_hospital_patient_medicine_return_form" model="ir.ui.view">
+        <field name="name">hospital.patient.medicine.return.form</field>
+        <field name="model">hospital.patient.medicine.return</field>
+        <field name="arch" type="xml">
+            <form string="Patient Return">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Patient &amp; Medicine">
+                            <field name="patient_id"/>
+                            <field name="medicine_id"/>
+                            <field name="batch_id"/>
+                        </group>
+                        <group string="Quantities &amp; Refund">
+                            <field name="qty"/>
+                            <field name="refund_amount"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Reason" name="reason">
+                            <field name="reason" placeholder="Explain why the patient is returning the medicines (e.g. unopened, treatment stopped)..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Patient Return Action -->
+    <record id="action_hospital_patient_medicine_return" model="ir.actions.act_window">
+        <field name="name">Patient Returns</field>
+        <field name="res_model">hospital.patient.medicine.return</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a Patient Return!
+            </p>
+            <p>
+                This allows you to receive unopened/returned medicines from patients, refunding them and adding stock back to the batch.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock Adjustment List View -->
+    <record id="view_hospital_stock_adjustment_list" model="ir.ui.view">
+        <field name="name">hospital.stock.adjustment.list</field>
+        <field name="model">hospital.stock.adjustment</field>
+        <field name="arch" type="xml">
+            <list string="Stock Adjustments">
+                <field name="name"/>
+                <field name="medicine_id"/>
+                <field name="batch_id"/>
+                <field name="old_qty"/>
+                <field name="new_qty"/>
+                <field name="date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Stock Adjustment Form View -->
+    <record id="view_hospital_stock_adjustment_form" model="ir.ui.view">
+        <field name="name">hospital.stock.adjustment.form</field>
+        <field name="model">hospital.stock.adjustment</field>
+        <field name="arch" type="xml">
+            <form string="Stock Adjustment">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Medicine Info">
+                            <field name="medicine_id"/>
+                            <field name="batch_id"/>
+                        </group>
+                        <group string="Stock Corrections">
+                            <field name="old_qty"/>
+                            <field name="new_qty"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Reason" name="reason">
+                            <field name="reason" placeholder="State why physical stock doesn't match system (e.g. leakage, counting error)..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Stock Adjustment Action -->
+    <record id="action_hospital_stock_adjustment" model="ir.actions.act_window">
+        <field name="name">Stock Adjustments</field>
+        <field name="res_model">hospital.stock.adjustment</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Perform a Stock Adjustment!
+            </p>
+            <p>
+                This updates the batch quantity to match the physical stock count and creates a stock movement log automatically.
+            </p>
+        </field>
+    </record>
+</odoo>

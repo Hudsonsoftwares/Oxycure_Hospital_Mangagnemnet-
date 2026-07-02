@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Supplier List View -->
+    <record id="view_hospital_medicine_supplier_list" model="ir.ui.view">
+        <field name="name">hospital.medicine.supplier.list</field>
+        <field name="model">hospital.medicine.supplier</field>
+        <field name="arch" type="xml">
+            <list string="Suppliers" decoration-muted="not active">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="phone"/>
+                <field name="email"/>
+                <field name="gstin"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Supplier Form View -->
+    <record id="view_hospital_medicine_supplier_form" model="ir.ui.view">
+        <field name="name">hospital.medicine.supplier.form</field>
+        <field name="model">hospital.medicine.supplier</field>
+        <field name="arch" type="xml">
+            <form string="Supplier">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Supplier Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="e.g. SUP001"/>
+                            <field name="gstin" placeholder="GSTIN Number"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Contact Info">
+                            <field name="phone" placeholder="Phone Number"/>
+                            <field name="email" placeholder="Email Address"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Address" name="address">
+                            <field name="address" placeholder="Postal Address..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Supplier Action -->
+    <record id="action_hospital_medicine_supplier" model="ir.actions.act_window">
+        <field name="name">Medicine Suppliers</field>
+        <field name="res_model">hospital.medicine.supplier</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first supplier!
+            </p>
+            <p>
+                Suppliers are vendors from whom you purchase pharmacy medicines.
+            </p>
+        </field>
+    </record>
+</odoo>

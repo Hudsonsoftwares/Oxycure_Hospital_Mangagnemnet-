@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock Movement List View -->
+    <record id="view_hospital_stock_movement_list" model="ir.ui.view">
+        <field name="name">hospital.stock.movement.list</field>
+        <field name="model">hospital.stock.movement</field>
+        <field name="arch" type="xml">
+            <list string="Stock Movements" create="false" edit="false" delete="false">
+                <field name="date"/>
+                <field name="medicine_id"/>
+                <field name="batch_id"/>
+                <field name="qty" decoration-success="qty &gt; 0" decoration-danger="qty &lt; 0"/>
+                <field name="type" widget="badge" decoration-info="type in ('purchase', 'patient_return')" decoration-success="type in ('purchase')" decoration-warning="type in ('adjustment')" decoration-danger="type in ('sale', 'dispense', 'purchase_return', 'disposal')"/>
+                <field name="reference"/>
+                <field name="user_id"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Stock Movement Search View -->
+    <record id="view_hospital_stock_movement_search" model="ir.ui.view">
+        <field name="name">hospital.stock.movement.search</field>
+        <field name="model">hospital.stock.movement</field>
+        <field name="arch" type="xml">
+            <search string="Search Stock Movements">
+                <field name="medicine_id"/>
+                <field name="batch_id"/>
+                <field name="reference"/>
+                <filter string="Additions" name="additions" domain="[('qty', '>', 0)]"/>
+                <filter string="Deductions" name="deductions" domain="[('qty', '&lt;', 0)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Medicine" name="group_by_medicine" context="{'group_by': 'medicine_id'}"/>
+                    <filter string="Batch" name="group_by_batch" context="{'group_by': 'batch_id'}"/>
+                    <filter string="Type" name="group_by_type" context="{'group_by': 'type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Stock Movement Action -->
+    <record id="action_hospital_stock_movement" model="ir.actions.act_window">
+        <field name="name">Stock Movements</field>
+        <field name="res_model">hospital.stock.movement</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_hospital_stock_movement_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No stock movements logged!
+            </p>
+            <p>
+                Every transaction (purchase, dispense, sale, return, adjustment, disposal) is logged here for auditing.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -8,9 +8,13 @@
             <list string="Medicines" decoration-success="status == 'active'" decoration-muted="status == 'inactive'">
                 <field name="name"/>
                 <field name="code"/>
-                <field name="price"/>
+                <field name="brand_name"/>
+                <field name="generic_name"/>
+                <field name="category_id"/>
+                <field name="price" string="Selling Price"/>
                 <field name="qty_available"/>
                 <field name="expiry_date"/>
+                <field name="requires_prescription" widget="boolean_toggle"/>
                 <field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'inactive'"/>
             </list>
         </field>
@@ -23,25 +27,66 @@
         <field name="arch" type="xml">
             <form string="Medicine Info">
                 <sheet>
+                    <field name="image" widget="image" class="oe_avatar" options="{'zoom': true, 'preview_image': 'image'}"/>
                     <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
                         <h1>
                             <field name="name" placeholder="Medicine Name (e.g. Paracetamol 650mg)"/>
                         </h1>
                     </div>
                     <group>
-                        <group string="Basic Info">
+                        <group string="Classification">
                             <field name="code" placeholder="e.g. MED001"/>
-                            <field name="price"/>
+                            <field name="brand_name" placeholder="Brand Name"/>
+                            <field name="generic_name" placeholder="Generic Name"/>
+                            <field name="category_id"/>
+                            <field name="manufacturer" placeholder="Manufacturer"/>
+                        </group>
+                        <group string="Form &amp; Strength">
+                            <field name="dosage_form"/>
+                            <field name="strength"/>
+                            <field name="unit"/>
+                            <field name="requires_prescription" widget="boolean_toggle"/>
                             <field name="status"/>
                             <field name="active" widget="boolean_toggle"/>
                         </group>
-                        <group string="Inventory &amp; Dates">
-                            <field name="qty_available"/>
+                    </group>
+                    <group>
+                        <group string="Tax &amp; Identification">
+                            <field name="barcode" placeholder="Barcode"/>
+                            <field name="hsn_code" placeholder="HSN Code"/>
+                            <field name="gst_rate"/>
+                        </group>
+                        <group string="Pricing &amp; Storage">
+                            <field name="price" string="Selling Price"/>
+                            <field name="purchase_price"/>
+                            <field name="storage_condition" placeholder="e.g. Store below 25°C"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Inventory Thresholds">
+                            <field name="minimum_stock"/>
                             <field name="reorder_level"/>
-                            <field name="expiry_date"/>
+                        </group>
+                        <group string="Current Stock (Computed)">
+                            <field name="qty_available" readonly="1"/>
+                            <field name="expiry_date" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Active Batches" name="batches">
+                            <field name="batch_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="manufacturing_date"/>
+                                    <field name="expiry_date"/>
+                                    <field name="qty_original"/>
+                                    <field name="qty_remaining"/>
+                                    <field name="purchase_price"/>
+                                    <field name="selling_price"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Description" name="description_tab">
                             <field name="description" placeholder="Enter medicine description/notes here..."/>
                         </page>
@@ -57,13 +102,21 @@
         <field name="model">hospital.medicine</field>
         <field name="arch" type="xml">
             <search string="Search Medicines">
-                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('code', 'ilike', self), ('generic_name', 'ilike', self)]"/>
                 <field name="code"/>
+                <field name="generic_name"/>
+                <field name="brand_name"/>
+                <field name="category_id"/>
                 <separator/>
                 <filter string="Active Status" name="active_status" domain="[('status', '=', 'active')]"/>
                 <filter string="Inactive Status" name="inactive_status" domain="[('status', '=', 'inactive')]"/>
+                <filter string="Requires Prescription" name="req_prescription" domain="[('requires_prescription', '=', True)]"/>
                 <separator/>
                 <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
+                    <filter string="Dosage Form" name="group_by_dosage_form" context="{'group_by': 'dosage_form'}"/>
+                </group>
             </search>
         </field>
     </record>
@@ -83,11 +136,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Medicine Menu Item -->
-    <menuitem id="menu_hospital_medicine"
-              name="Medicines"
-              parent="menu_hospital_configuration"
-              action="action_hospital_medicine"
-              sequence="40"/>
 </odoo>

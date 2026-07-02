@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Purchase Return List View -->
+    <record id="view_hospital_medicine_purchase_return_list" model="ir.ui.view">
+        <field name="name">hospital.medicine.purchase.return.list</field>
+        <field name="model">hospital.medicine.purchase.return</field>
+        <field name="arch" type="xml">
+            <list string="Supplier Returns">
+                <field name="name"/>
+                <field name="supplier_id"/>
+                <field name="purchase_id"/>
+                <field name="medicine_id"/>
+                <field name="batch_id"/>
+                <field name="qty"/>
+                <field name="date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Purchase Return Form View -->
+    <record id="view_hospital_medicine_purchase_return_form" model="ir.ui.view">
+        <field name="name">hospital.medicine.purchase.return.form</field>
+        <field name="model">hospital.medicine.purchase.return</field>
+        <field name="arch" type="xml">
+            <form string="Supplier Return">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Source">
+                            <field name="supplier_id"/>
+                            <field name="purchase_id"/>
+                        </group>
+                        <group string="Details">
+                            <field name="medicine_id"/>
+                            <field name="batch_id"/>
+                            <field name="qty"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Reason" name="reason">
+                            <field name="reason" placeholder="Explain why stock is being returned to supplier..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Purchase Return Action -->
+    <record id="action_hospital_medicine_purchase_return" model="ir.actions.act_window">
+        <field name="name">Purchase Returns</field>
+        <field name="res_model">hospital.medicine.purchase.return</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a Supplier Return!
+            </p>
+            <p>
+                This allows you to return stock back to suppliers, reducing inventory automatically.
+            </p>
+        </field>
+    </record>
+</odoo>

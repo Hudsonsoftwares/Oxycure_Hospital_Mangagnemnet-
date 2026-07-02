@@ -15,3 +15,16 @@ access_hospital_billing_line,hospital.billing.line,model_hospital_billing_line,,
 access_hospital_pharmacy_request,hospital.pharmacy.request,model_hospital_pharmacy_request,,1,1,1,1
 access_hospital_pharmacy_request_line,hospital.pharmacy.request.line,model_hospital_pharmacy_request_line,,1,1,1,1
 access_hospital_dashboard,hospital.dashboard,model_hospital_dashboard,,1,1,1,1
+access_hospital_medicine_category,hospital.medicine.category,model_hospital_medicine_category,,1,1,1,1
+access_hospital_medicine_supplier,hospital.medicine.supplier,model_hospital_medicine_supplier,,1,1,1,1
+access_hospital_medicine_batch,hospital.medicine.batch,model_hospital_medicine_batch,,1,1,1,1
+access_hospital_stock_movement,hospital.stock.movement,model_hospital_stock_movement,,1,1,1,1
+access_hospital_medicine_purchase,hospital.medicine.purchase,model_hospital_medicine_purchase,,1,1,1,1
+access_hospital_medicine_purchase_line,hospital.medicine.purchase.line,model_hospital_medicine_purchase_line,,1,1,1,1
+access_hospital_medicine_purchase_return,hospital.medicine.purchase.return,model_hospital_medicine_purchase_return,,1,1,1,1
+access_hospital_patient_medicine_return,hospital.patient.medicine.return,model_hospital_patient_medicine_return,,1,1,1,1
+access_hospital_stock_adjustment,hospital.stock.adjustment,model_hospital_stock_adjustment,,1,1,1,1
+access_hospital_expired_disposal,hospital.expired.disposal,model_hospital_expired_disposal,,1,1,1,1
+access_hospital_pharmacy_sale,hospital.pharmacy.sale,model_hospital_pharmacy_sale,,1,1,1,1
+access_hospital_pharmacy_sale_line,hospital.pharmacy.sale.line,model_hospital_pharmacy_sale_line,,1,1,1,1
+access_hospital_pharmacy_alert,hospital.pharmacy.alert,model_hospital_pharmacy_alert,,1,1,1,1

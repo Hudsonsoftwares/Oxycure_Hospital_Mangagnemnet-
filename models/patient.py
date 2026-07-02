@@ -151,6 +151,12 @@ class HospitalPatient(models.Model):
         ('other', 'Other')
     ], string="Relationship")
 
+    op_ids = fields.One2many(
+        "hospital.op",
+        "patient_id",
+        string="OP Visits"
+    )
+
     # ==========================
     # Registration
     # ==========================

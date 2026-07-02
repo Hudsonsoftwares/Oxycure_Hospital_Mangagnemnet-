@@ -66,8 +66,54 @@ class HospitalPharmacyRequest(models.Model):
         return super(HospitalPharmacyRequest, self).create(vals)
 
     def action_dispense(self):
+        from odoo.exceptions import ValidationError
         for record in self:
             if record.status == 'pending':
+                # First validate all lines have sufficient stock before doing any deduction
+                today = fields.Date.today()
+                for line in record.line_ids:
+                    # Get active, non-expired batches sorted by expiry_date (FEFO)
+                    batches = self.env["hospital.medicine.batch"].search([
+                        ("medicine_id", "=", line.medicine_id.id),
+                        ("qty_remaining", ">", 0),
+                        ("expiry_date", ">=", today)
+                    ], order="expiry_date asc, name asc")
+                    
+                    total_available = sum(batches.mapped("qty_remaining"))
+                    if total_available < line.qty:
+                        raise ValidationError(_("Insufficient stock for medicine '%s'! Required: %s, Available: %s") % (
+                            line.medicine_id.name, line.qty, total_available
+                        ))
+
+                # If all lines are valid, perform the FEFO deduction
+                for line in record.line_ids:
+                    qty_to_deduct = line.qty
+                    batches = self.env["hospital.medicine.batch"].search([
+                        ("medicine_id", "=", line.medicine_id.id),
+                        ("qty_remaining", ">", 0),
+                        ("expiry_date", ">=", today)
+                    ], order="expiry_date asc, name asc")
+                    
+                    for batch in batches:
+                        if qty_to_deduct <= 0:
+                            break
+                        
+                        deducted = min(qty_to_deduct, batch.qty_remaining)
+                        batch.write({
+                            "qty_remaining": batch.qty_remaining - deducted
+                        })
+                        
+                        # Create stock movement log
+                        self.env["hospital.stock.movement"].create({
+                            "medicine_id": line.medicine_id.id,
+                            "batch_id": batch.id,
+                            "qty": -deducted,
+                            "type": "dispense",
+                            "reference": record.name
+                        })
+                        
+                        qty_to_deduct -= deducted
+
                 record.write({'status': 'dispensed'})
                 record.op_id.write({'pharmacy_completed': True})
 

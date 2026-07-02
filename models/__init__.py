@@ -11,3 +11,14 @@ from . import lab_processing
 from . import billing
 from . import pharmacy
 from . import dashboard
+from . import medicine_category
+from . import medicine_supplier
+from . import medicine_batch
+from . import stock_movement
+from . import medicine_purchase
+from . import purchase_return
+from . import patient_return
+from . import stock_adjustment
+from . import expired_disposal
+from . import pharmacy_sale
+from . import pharmacy_alert

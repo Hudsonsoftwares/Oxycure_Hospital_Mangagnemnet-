@@ -8,4 +8,58 @@
         <field name="number_next">1</field>
         <field name="number_increment">1</field>
     </record>
+
+    <record id="seq_hospital_medicine_purchase" model="ir.sequence">
+        <field name="name">Medicine Purchase Order</field>
+        <field name="code">hospital.medicine.purchase</field>
+        <field name="prefix">HPO</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+    <record id="seq_hospital_medicine_purchase_return" model="ir.sequence">
+        <field name="name">Medicine Purchase Return</field>
+        <field name="code">hospital.medicine.purchase.return</field>
+        <field name="prefix">HPR</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+    <record id="seq_hospital_patient_medicine_return" model="ir.sequence">
+        <field name="name">Patient Medicine Return</field>
+        <field name="code">hospital.patient.medicine.return</field>
+        <field name="prefix">HSR</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+    <record id="seq_hospital_stock_adjustment" model="ir.sequence">
+        <field name="name">Stock Adjustment</field>
+        <field name="code">hospital.stock.adjustment</field>
+        <field name="prefix">HSA</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+    <record id="seq_hospital_expired_disposal" model="ir.sequence">
+        <field name="name">Expired Medicine Disposal</field>
+        <field name="code">hospital.expired.disposal</field>
+        <field name="prefix">HSD</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+    <record id="seq_hospital_pharmacy_sale" model="ir.sequence">
+        <field name="name">Pharmacy Counter Sale</field>
+        <field name="code">hospital.pharmacy.sale</field>
+        <field name="prefix">HPS</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
 </odoo>
