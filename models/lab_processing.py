@@ -67,9 +67,10 @@ class HospitalLabProcessing(models.Model):
         string="Testing Started At",
         readonly=True
     )
-    equipment_used = fields.Char(
+    equipment_id = fields.Many2one(
+        "hospital.lab.equipment",
         string="Equipment Used",
-        placeholder="e.g. Centrifuge model 500, Analyzer CX"
+        domain="[('test_ids', '=', test_id), ('status', '=', 'active')]"
     )
     processing_notes = fields.Text(
         string="Processing Notes",
@@ -105,7 +106,7 @@ class HospitalLabProcessing(models.Model):
         readonly=True
     )
 
-    @api.constrains('status', 'sample_type', 'sample_details', 'equipment_used', 'result_details')
+    @api.constrains('status', 'sample_type', 'sample_details', 'equipment_id', 'result_details')
     def _check_stage_fields(self):
         for record in self:
             if record.status == 'collected':
@@ -117,16 +118,35 @@ class HospitalLabProcessing(models.Model):
             elif record.status == 'testing':
                 if not record.sample_type or not record.sample_details:
                     raise ValidationError(_("Sample Type and Details are required before testing."))
-                if not record.equipment_used:
+                if not record.equipment_id:
                     raise ValidationError(_("Please specify the Equipment Used before starting testing stage."))
             
             elif record.status == 'completed':
                 if not record.sample_type or not record.sample_details:
                     raise ValidationError(_("Sample collection details are required before completing the test."))
-                if not record.equipment_used:
+                if not record.equipment_id:
                     raise ValidationError(_("Equipment used is required before completing the test."))
                 if not record.result_details:
                     raise ValidationError(_("Please specify the Result Details before completing the test."))
+
+    @api.onchange('status')
+    def _onchange_status(self):
+        for record in self:
+            if record.status == 'collected':
+                if not record.sample_collected_at:
+                    record.sample_collected_at = fields.Datetime.now()
+            elif record.status == 'testing':
+                if not record.sample_collected_at:
+                    record.sample_collected_at = fields.Datetime.now()
+                if not record.process_start_datetime:
+                    record.process_start_datetime = fields.Datetime.now()
+            elif record.status == 'completed':
+                if not record.sample_collected_at:
+                    record.sample_collected_at = fields.Datetime.now()
+                if not record.process_start_datetime:
+                    record.process_start_datetime = fields.Datetime.now()
+                if not record.date_completed:
+                    record.date_completed = fields.Datetime.now()
 
     def write(self, vals):
         if 'status' in vals:
@@ -177,44 +197,57 @@ class HospitalLabProcessing(models.Model):
                 "in System Parameters (Settings -> Technical -> System Parameters) or set the GEMINI_API_KEY environment variable."
             ))
 
-        try:
-            import requests
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            headers = {"Content-Type": "application/json"}
+        models_to_try = [
+            "gemini-2.5-flash",
+            "gemini-1.5-flash",
+            "gemini-2.5-flash-8b",
+            "gemini-1.5-flash-8b"
+        ]
 
-            # Get base64 data string
-            pdf_base64 = self.result_pdf.decode('utf-8') if isinstance(self.result_pdf, bytes) else self.result_pdf
+        last_error = None
+        success = False
 
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {
-                            "inlineData": {
-                                "mimeType": "application/pdf",
-                                "data": pdf_base64
-                            }
-                        },
-                        {
-                            "text": "Summarize this medical lab report. Focus on key findings, abnormal values, and clinical conclusions. Format the response nicely with clean Markdown bullet points, keeping it professional and structured."
+        # Get base64 data string
+        pdf_base64 = self.result_pdf.decode('utf-8') if isinstance(self.result_pdf, bytes) else self.result_pdf
+
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "inlineData": {
+                            "mimeType": "application/pdf",
+                            "data": pdf_base64
                         }
-                    ]
-                }]
-            }
+                    },
+                    {
+                        "text": "Summarize this medical lab report. Focus on key findings, abnormal values, and clinical conclusions. Format the response nicely with clean Markdown bullet points, keeping it professional and structured."
+                    }
+                ]
+            }]
+        }
+        headers = {"Content-Type": "application/json"}
 
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            if response.status_code == 200:
-                res_data = response.json()
-                try:
-                    summary = res_data['candidates'][0]['content']['parts'][0]['text']
-                    self.ai_summary = summary
-                except (KeyError, IndexError):
-                    raise UserError(_("Received an unexpected response structure from Gemini API."))
-            else:
-                try:
-                    err_msg = response.json().get('error', {}).get('message', response.text)
-                except Exception:
-                    err_msg = response.text
-                raise UserError(_("Gemini API Error: %s") % err_msg)
+        import requests
+        for model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=30)
+                if response.status_code == 200:
+                    res_data = response.json()
+                    try:
+                        summary = res_data['candidates'][0]['content']['parts'][0]['text']
+                        self.ai_summary = summary
+                        success = True
+                        break
+                    except (KeyError, IndexError):
+                        last_error = _("Received an unexpected response structure from Gemini API.")
+                else:
+                    try:
+                        last_error = response.json().get('error', {}).get('message', response.text)
+                    except Exception:
+                        last_error = response.text
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
 
-        except requests.exceptions.RequestException as e:
-            raise UserError(_("Failed to connect to Gemini API: %s") % str(e))
+        if not success:
+            raise UserError(_("Gemini API Error (Tried multiple models): %s") % last_error)

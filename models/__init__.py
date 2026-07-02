@@ -8,6 +8,7 @@ from . import medicine
 from . import lab_test
 from . import lab_request
 from . import lab_processing
+from . import lab_equipment
 from . import billing
 from . import pharmacy
 from . import dashboard

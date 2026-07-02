@@ -28,3 +28,4 @@ access_hospital_expired_disposal,hospital.expired.disposal,model_hospital_expire
 access_hospital_pharmacy_sale,hospital.pharmacy.sale,model_hospital_pharmacy_sale,,1,1,1,1
 access_hospital_pharmacy_sale_line,hospital.pharmacy.sale.line,model_hospital_pharmacy_sale_line,,1,1,1,1
 access_hospital_pharmacy_alert,hospital.pharmacy.alert,model_hospital_pharmacy_alert,,1,1,1,1
+access_hospital_lab_equipment,hospital.lab.equipment,model_hospital_lab_equipment,,1,1,1,1

@@ -44,6 +44,7 @@ Custom Hospital Management Module
         'views/pharmacy_alert_views.xml',
         'views/lab_test_views.xml',
         'views/lab_operations_views.xml',
+        'views/lab_equipment_views.xml',
         'views/billing_views.xml',
         'views/billing_report.xml',
         'views/pharmacy_views.xml',

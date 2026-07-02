@@ -167,7 +167,7 @@
                     <!-- Stage 2: Testing Details (Visible only when testing or completed stages) -->
                     <group string="Testing &amp; Equipment Details" invisible="status in ('pending', 'collected')">
                         <group>
-                            <field name="equipment_used" required="status in ('testing', 'completed')"/>
+                            <field name="equipment_id" required="status in ('testing', 'completed')" options="{'no_create': True}"/>
                             <field name="process_start_datetime"/>
                         </group>
                         <group>
