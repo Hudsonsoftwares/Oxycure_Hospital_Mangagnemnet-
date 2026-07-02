@@ -17,6 +17,14 @@ class HospitalPharmacySale(models.Model):
         "hospital.patient",
         string="Patient"
     )
+    billing_id = fields.Many2one(
+        "hospital.billing",
+        string="Billing Invoice"
+    )
+    op_id = fields.Many2one(
+        "hospital.op",
+        string="OP Visit"
+    )
     sale_date = fields.Datetime(
         string="Sale Date",
         default=fields.Datetime.now,
@@ -86,6 +94,14 @@ class HospitalPharmacySale(models.Model):
                 })
             
             record.write({"state": "posted"})
+            if record.op_id:
+                record.op_id.write({'pharmacy_completed': True})
+                pending_requests = self.env['hospital.pharmacy.request'].search([
+                    ('op_id', '=', record.op_id.id),
+                    ('status', '=', 'pending')
+                ])
+                for req in pending_requests:
+                    req.write({'status': 'dispensed'})
 
     def action_cancel(self):
         for record in self:
