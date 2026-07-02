@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Patient Tree View -->
+    <record id="view_hospital_patient_tree" model="ir.ui.view">
+        <field name="name">hospital.patient.tree</field>
+        <field name="model">hospital.patient</field>
+        <field name="arch" type="xml">
+            <list string="Patients" decoration-success="status == 'active'" decoration-info="status == 'inactive'" decoration-danger="status == 'deceased'">
+                <field name="patient_id" readonly="1"/>
+                <field name="name"/>
+                <field name="gender"/>
+                <field name="age"/>
+                <field name="blood_group"/>
+                <field name="phone"/>
+                <field name="registration_date"/>
+                <field name="status" widget="badge" decoration-success="status == 'active'" decoration-info="status == 'inactive'" decoration-danger="status == 'deceased'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Patient Form View -->
+    <record id="view_hospital_patient_form" model="ir.ui.view">
+        <field name="name">hospital.patient.form</field>
+        <field name="model">hospital.patient</field>
+        <field name="arch" type="xml">
+            <form string="Patient Profile">
+                <header>
+                    <field name="status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar" options="{'zoom': true, 'preview_image': 'image_128'}"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="patient_id" readonly="1"/>
+                        </h1>
+                        <h2>
+                            <field name="name" placeholder="Patient Name"/>
+                        </h2>
+                    </div>
+                    <notebook>
+                        <page string="Personal Info" name="personal_info">
+                            <group>
+                                <group string="Demographics">
+                                    <field name="gender"/>
+                                    <field name="dob" required="1"/>
+                                    <field name="age"/>
+                                    <field name="blood_group"/>
+                                </group>
+                                <group string="Additional Info">
+                                    <field name="marital_status"/>
+                                    <field name="nationality"/>
+                                    <field name="registration_date" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Contact Details" name="contact_details">
+                            <group>
+                                <group string="Communications">
+                                    <field name="phone" widget="phone"/>
+                                    <field name="mobile" widget="phone"/>
+                                    <field name="email" widget="email"/>
+                                </group>
+                                <group string="Address Details">
+                                    <field name="address" placeholder="Street Address..."/>
+                                    <field name="city"/>
+                                    <field name="state"/>
+                                    <field name="zip"/>
+                                    <field name="country_id" options="{'no_create': True, 'no_open': True}"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Medical History" name="medical_history">
+                            <group>
+                                <field name="allergies" placeholder="List any food or drug allergies..."/>
+                                <field name="chronic_diseases" placeholder="Chronic conditions (e.g. Diabetes, Hypertension)..."/>
+                                <field name="current_medications" placeholder="List active medications..."/>
+                                <field name="medical_remarks" placeholder="General medical history observations..."/>
+                            </group>
+                        </page>
+                        <page string="Emergency Contacts" name="emergency_contacts">
+                            <group>
+                                <group string="Primary Emergency Contact">
+                                    <field name="emergency_contact_name"/>
+                                    <field name="emergency_contact_number" widget="phone"/>
+                                    <field name="relationship"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Internal Notes" name="internal_notes">
+                            <field name="notes" placeholder="Add custom notes here..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Patient Search View -->
+    <record id="view_hospital_patient_search" model="ir.ui.view">
+        <field name="name">hospital.patient.search</field>
+        <field name="model">hospital.patient</field>
+        <field name="arch" type="xml">
+            <search string="Search Patients">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('patient_id', 'ilike', self)]"/>
+                <field name="patient_id"/>
+                <field name="phone"/>
+                <field name="email"/>
+                <separator/>
+                <filter string="Active" name="active_patients" domain="[('status', '=', 'active')]"/>
+                <filter string="Inactive" name="inactive_patients" domain="[('status', '=', 'inactive')]"/>
+                <filter string="Deceased" name="deceased_patients" domain="[('status', '=', 'deceased')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Gender" name="group_gender" context="{'group_by': 'gender'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Blood Group" name="group_blood_group" context="{'group_by': 'blood_group'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for Patients -->
+    <record id="action_hospital_patient" model="ir.actions.act_window">
+        <field name="name">Patients</field>
+        <field name="res_model">hospital.patient</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_patient_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Register your first patient!
+            </p>
+            <p>
+                Manage patient profiles, contact details, medical history, and emergency contacts.
+            </p>
+        </field>
+    </record>
+
+    <!-- Main Menu Structure -->
+    <menuitem id="menu_hospital_root"
+              name="NovaCare"
+              sequence="10"/>
+
+    <menuitem id="menu_hospital_registration"
+              name="Registration"
+              parent="menu_hospital_root"
+              sequence="10"/>
+
+    <menuitem id="menu_hospital_laboratory"
+              name="Laboratory"
+              parent="menu_hospital_root"
+              sequence="20"/>
+
+    <menuitem id="menu_hospital_configuration"
+              name="Configuration"
+              parent="menu_hospital_root"
+              sequence="100"/>
+
+    <menuitem id="menu_hospital_patient"
+              name="Patients"
+              parent="menu_hospital_registration"
+              action="action_hospital_patient"
+              sequence="10"/>
+</odoo>

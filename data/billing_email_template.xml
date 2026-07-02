@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="email_template_hospital_billing" model="mail.template">
+        <field name="name">Hospital Billing: Invoice Receipt</field>
+        <field name="model_id" ref="hospital_management.model_hospital_billing"/>
+        <field name="subject">Hospital Invoice Paid - {{ object.name }}</field>
+        <field name="email_to">{{ object.patient_id.email }}</field>
+        <field name="body_html" type="html">
+            <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eeeeee; border-radius: 5px;">
+                <h2 style="color: #4CAF50; text-align: center; margin-top: 0;">Payment Successful</h2>
+                <p>Dear <t t-out="object.patient_id.name"/>,</p>
+                <p>Thank you for your payment. Your hospital invoice has been paid successfully.</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Invoice Number:</strong></td>
+                        <td style="padding: 5px 0; text-align: right;"><t t-out="object.name"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Invoice Date:</strong></td>
+                        <td style="padding: 5px 0; text-align: right;"><t t-out="object.billing_date"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Doctor:</strong></td>
+                        <td style="padding: 5px 0; text-align: right;"><t t-out="object.doctor_id.name"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Total Paid:</strong></td>
+                        <td style="padding: 5px 0; text-align: right; color: #4CAF50; font-weight: bold;"><t t-out="object.amount_total"/></td>
+                    </tr>
+                </table>
+
+                <h3 style="border-bottom: 1px solid #eeeeee; padding-bottom: 5px; color: #555555;">Bill Details</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f9f9f9;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #dddddd;">Description</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 1px solid #dddddd;">Price</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 1px solid #dddddd;">Qty</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 1px solid #dddddd;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="object.bill_line_ids" t-as="line">
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eeeeee;"><t t-out="line.name"/></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eeeeee; text-align: right;"><t t-out="line.price"/></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eeeeee; text-align: right;"><t t-out="line.qty"/></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eeeeee; text-align: right;"><t t-out="line.subtotal"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+                <br/>
+                <p style="font-size: 12px; color: #777777; text-align: center; margin-top: 30px;">
+                    This is an automated receipt. If you have any questions, please contact our support.
+                </p>
+            </div>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lab Test List View -->
+    <record id="view_hospital_lab_test_list" model="ir.ui.view">
+        <field name="name">hospital.lab.test.list</field>
+        <field name="model">hospital.lab.test</field>
+        <field name="arch" type="xml">
+            <list string="Laboratory Tests" decoration-success="status == 'active'" decoration-muted="status == 'inactive'">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="price"/>
+                <field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'inactive'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Lab Test Form View -->
+    <record id="view_hospital_lab_test_form" model="ir.ui.view">
+        <field name="name">hospital.lab.test.form</field>
+        <field name="model">hospital.lab.test</field>
+        <field name="arch" type="xml">
+            <form string="Laboratory Test Info">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Test Name (e.g. Complete Blood Count)"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="e.g. LAB001"/>
+                            <field name="price"/>
+                        </group>
+                        <group>
+                            <field name="status"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description_tab">
+                            <field name="description" placeholder="Enter laboratory test details / instructions here..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Lab Test Search View -->
+    <record id="view_hospital_lab_test_search" model="ir.ui.view">
+        <field name="name">hospital.lab.test.search</field>
+        <field name="model">hospital.lab.test</field>
+        <field name="arch" type="xml">
+            <search string="Search Lab Tests">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Active Status" name="active_status" domain="[('status', '=', 'active')]"/>
+                <filter string="Inactive Status" name="inactive_status" domain="[('status', '=', 'inactive')]"/>
+                <separator/>
+                <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Lab Test Action -->
+    <record id="action_hospital_lab_test" model="ir.actions.act_window">
+        <field name="name">Lab Tests</field>
+        <field name="res_model">hospital.lab.test</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_lab_test_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first lab test/service!
+            </p>
+            <p>
+                Create a master database of laboratory tests and services available in your hospital.
+            </p>
+        </field>
+    </record>
+
+    <!-- Lab Test Menu Item -->
+    <menuitem id="menu_hospital_lab_test"
+              name="Lab Tests &amp; Services"
+              parent="menu_hospital_laboratory"
+              action="action_hospital_lab_test"
+              sequence="10"/>
+</odoo>

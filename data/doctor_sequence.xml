@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="seq_hospital_doctor" model="ir.sequence">
+        <field name="name">Hospital Doctor</field>
+        <field name="code">hospital.doctor</field>
+        <field name="prefix">DOC</field>
+        <field name="padding">5</field>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ==================== LABORATORY REQUESTS VIEWS ==================== -->
+
+    <!-- Lab Request List View -->
+    <record id="view_hospital_lab_request_list" model="ir.ui.view">
+        <field name="name">hospital.lab.request.list</field>
+        <field name="model">hospital.lab.request</field>
+        <field name="arch" type="xml">
+            <list string="Laboratory Requests" decoration-info="status == 'requested'" decoration-primary="status == 'billed'" decoration-success="status == 'completed'" decoration-muted="status == 'cancelled'" create="false" edit="false">
+                <field name="name"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="patient_gender"/>
+                <field name="patient_age"/>
+                <field name="doctor_id"/>
+                <field name="request_datetime"/>
+                <field name="status" widget="badge" decoration-warning="status == 'requested'" decoration-primary="status == 'billed'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Lab Request Form View -->
+    <record id="view_hospital_lab_request_form" model="ir.ui.view">
+        <field name="name">hospital.lab.request.form</field>
+        <field name="model">hospital.lab.request</field>
+        <field name="arch" type="xml">
+            <form string="Laboratory Request Page" create="false" edit="false">
+                <header>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Patient Demographics">
+                            <field name="patient_id"/>
+                            <field name="patient_gender"/>
+                            <field name="patient_age"/>
+                            <field name="patient_blood_group"/>
+                        </group>
+                        <group string="Visit &amp; Consultation Information">
+                            <field name="op_id"/>
+                            <field name="doctor_id"/>
+                            <field name="request_datetime"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Prescribed Lab Tests" name="prescribed_tests">
+                            <field name="line_ids">
+                                <list create="false" delete="false" edit="false">
+                                    <field name="test_id"/>
+                                    <field name="notes"/>
+                                    <field name="status" widget="badge" decoration-warning="status == 'requested'" decoration-primary="status == 'billed'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Lab Request Search View -->
+    <record id="view_hospital_lab_request_search" model="ir.ui.view">
+        <field name="name">hospital.lab.request.search</field>
+        <field name="model">hospital.lab.request</field>
+        <field name="arch" type="xml">
+            <search string="Search Laboratory Requests">
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('op_id.op_number', 'ilike', self), ('patient_id', 'ilike', self)]"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <separator/>
+                <filter string="Requested" name="requested" domain="[('status', '=', 'requested')]"/>
+                <filter string="Completed" name="completed" domain="[('status', '=', 'completed')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('status', '=', 'cancelled')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Patient" name="group_by_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Doctor" name="group_by_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Status" name="group_by_status" context="{'group_by': 'status'}"/>
+                    <filter string="Requested Date" name="group_by_date" context="{'group_by': 'request_datetime:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Lab Request Action -->
+    <record id="action_hospital_lab_request" model="ir.actions.act_window">
+        <field name="name">Laboratory Requests</field>
+        <field name="res_model">hospital.lab.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_lab_request_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No laboratory requests found!
+            </p>
+            <p>
+                Requests will appear here when doctors prescribe lab tests during patient OP visits.
+            </p>
+        </field>
+    </record>
+
+    <!-- Lab Request Menu Item -->
+    <menuitem id="menu_hospital_lab_request"
+              name="Laboratory Requests"
+              parent="menu_hospital_laboratory"
+              action="action_hospital_lab_request"
+              sequence="20"/>
+
+
+    <!-- ==================== LABORATORY PROCESSING VIEWS ==================== -->
+
+    <!-- Lab Processing List View -->
+    <record id="view_hospital_lab_processing_list" model="ir.ui.view">
+        <field name="name">hospital.lab.processing.list</field>
+        <field name="model">hospital.lab.processing</field>
+        <field name="arch" type="xml">
+            <list string="Lab Processing" decoration-info="status == 'pending'" decoration-primary="status == 'collected'" decoration-warning="status == 'testing'" decoration-success="status == 'completed'" decoration-muted="status == 'cancelled'" create="false">
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="test_id"/>
+                <field name="status" widget="badge" decoration-warning="status == 'pending'" decoration-info="status == 'collected'" decoration-primary="status == 'testing'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+                <field name="technician_id"/>
+                <field name="date_completed"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Lab Processing Form View -->
+    <record id="view_hospital_lab_processing_form" model="ir.ui.view">
+        <field name="name">hospital.lab.processing.form</field>
+        <field name="model">hospital.lab.processing</field>
+        <field name="arch" type="xml">
+            <form string="Lab Test Processing" create="false">
+                <header>
+                    <field name="status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Patient &amp; Visit Details">
+                            <field name="op_id"/>
+                            <field name="patient_id"/>
+                            <field name="test_id"/>
+                        </group>
+                        <group string="Process Info">
+                            <field name="technician_id" options="{'no_create': True}"/>
+                            <field name="date_completed" readonly="1" invisible="status != 'completed'"/>
+                            <field name="request_line_id" readonly="1" groups="base.group_no_one"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Stage 1: Sample Collection Details (Visible only when sample is collected or further stages) -->
+                    <group string="Specimen Collection Details" invisible="status == 'pending'">
+                        <group>
+                            <field name="sample_type" required="status in ('collected', 'testing', 'completed')"/>
+                            <field name="sample_details" required="status in ('collected', 'testing', 'completed')"/>
+                        </group>
+                        <group>
+                            <field name="sample_collected_at"/>
+                        </group>
+                    </group>
+
+                    <!-- Stage 2: Testing Details (Visible only when testing or completed stages) -->
+                    <group string="Testing &amp; Equipment Details" invisible="status in ('pending', 'collected')">
+                        <group>
+                            <field name="equipment_used" required="status in ('testing', 'completed')"/>
+                            <field name="process_start_datetime"/>
+                        </group>
+                        <group>
+                            <field name="processing_notes"/>
+                        </group>
+                    </group>
+
+                    <!-- Stage 3: Result Details (Visible when testing or completed) -->
+                    <notebook invisible="status not in ('testing', 'completed')">
+                        <page string="Result Findings" name="results_page">
+                            <group>
+                                <group string="Findings">
+                                    <field name="result_details" required="status == 'completed'"/>
+                                    <field name="lab_findings"/>
+                                </group>
+                                <group string="Report Files">
+                                    <field name="result_pdf_name" invisible="1"/>
+                                    <field name="result_pdf" filename="result_pdf_name" widget="binary"/>
+                                    <button name="action_generate_ai_summary" type="object" string="Generate AI Summary" class="oe_highlight" invisible="not result_pdf"/>
+                                </group>
+                            </group>
+                            <group string="AI Analysis">
+                                <field name="ai_summary" readonly="1" placeholder="AI-generated summary of the lab report PDF will appear here..."/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Lab Processing Search View -->
+    <record id="view_hospital_lab_processing_search" model="ir.ui.view">
+        <field name="name">hospital.lab.processing.search</field>
+        <field name="model">hospital.lab.processing</field>
+        <field name="arch" type="xml">
+            <search string="Search Lab Processings">
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="test_id"/>
+                <field name="technician_id"/>
+                <separator/>
+                <filter string="Pending Sample" name="pending" domain="[('status', '=', 'pending')]"/>
+                <filter string="Sample Collected" name="collected" domain="[('status', '=', 'collected')]"/>
+                <filter string="Under Testing" name="testing" domain="[('status', '=', 'testing')]"/>
+                <filter string="Completed" name="completed" domain="[('status', '=', 'completed')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('status', '=', 'cancelled')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="OP Visit" name="group_by_op" context="{'group_by': 'op_id'}"/>
+                    <filter string="Patient" name="group_by_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Test" name="group_by_test" context="{'group_by': 'test_id'}"/>
+                    <filter string="Status" name="group_by_status" context="{'group_by': 'status'}"/>
+                    <filter string="Technician" name="group_by_technician" context="{'group_by': 'technician_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Lab Processing Action -->
+    <record id="action_hospital_lab_processing" model="ir.actions.act_window">
+        <field name="name">Lab Processing</field>
+        <field name="res_model">hospital.lab.processing</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_lab_processing_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No active lab processings!
+            </p>
+            <p>
+                When a doctor requests a lab test and billing is completed for that outpatient record, a processing entry will be generated here automatically.
+            </p>
+        </field>
+    </record>
+
+    <!-- Lab Processing Menu Item -->
+    <menuitem id="menu_hospital_lab_processing"
+              name="Lab Processing"
+              parent="menu_hospital_laboratory"
+              action="action_hospital_lab_processing"
+              sequence="30"/>
+</odoo>

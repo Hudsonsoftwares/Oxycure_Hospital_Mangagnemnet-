@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Appointment Tree View -->
+    <record id="view_hospital_appointment_tree" model="ir.ui.view">
+        <field name="name">hospital.appointment.tree</field>
+        <field name="model">hospital.appointment</field>
+        <field name="arch" type="xml">
+            <list string="Appointments" decoration-info="status == 'booked'" decoration-primary="status == 'checked_in'" decoration-warning="status == 'consultation'" decoration-success="status == 'completed'" decoration-muted="status in ('cancelled', 'no_show')">
+                <field name="appointment_no"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="department_id"/>
+                <field name="appointment_date"/>
+                <field name="visit_type"/>
+                <field name="token_number"/>
+                <field name="status" widget="badge" decoration-info="status == 'booked'" decoration-primary="status == 'checked_in'" decoration-warning="status == 'consultation'" decoration-success="status == 'completed'" decoration-danger="status in ('cancelled', 'no_show')"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Appointment Form View -->
+    <record id="view_hospital_appointment_form" model="ir.ui.view">
+        <field name="name">hospital.appointment.form</field>
+        <field name="model">hospital.appointment</field>
+        <field name="arch" type="xml">
+            <form string="Appointment Details">
+                <header>
+                    <field name="status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="appointment_no" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Patient &amp; Doctor Details">
+                            <field name="patient_id" options="{'no_create': True}"/>
+                            <field name="doctor_id" options="{'no_create': True}"/>
+                            <field name="department_id"/>
+                        </group>
+                        <group string="Schedule &amp; Type">
+                            <field name="appointment_date"/>
+                            <field name="appointment_time"/>
+                            <field name="visit_type"/>
+                            <field name="token_number"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chief Complaint" name="chief_complaint_page">
+                            <field name="chief_complaint" placeholder="Describe the chief complaint or symptoms..."/>
+                        </page>
+                        <page string="Notes" name="notes_page">
+                            <field name="notes" placeholder="Enter clinical notes, referrals, or follow-up details..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Appointment Search View -->
+    <record id="view_hospital_appointment_search" model="ir.ui.view">
+        <field name="name">hospital.appointment.search</field>
+        <field name="model">hospital.appointment</field>
+        <field name="arch" type="xml">
+            <search string="Search Appointments">
+                <field name="appointment_no"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <separator/>
+                <filter string="Booked" name="booked_appointments" domain="[('status', '=', 'booked')]"/>
+                <filter string="Checked In" name="checked_in_appointments" domain="[('status', '=', 'checked_in')]"/>
+                <filter string="In Consultation" name="consultation_appointments" domain="[('status', '=', 'consultation')]"/>
+                <filter string="Completed" name="completed_appointments" domain="[('status', '=', 'completed')]"/>
+                <filter string="Cancelled" name="cancelled_appointments" domain="[('status', '=', 'cancelled')]"/>
+                <filter string="No Show" name="no_show_appointments" domain="[('status', '=', 'no_show')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Doctor" name="group_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Patient" name="group_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'appointment_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for Appointments -->
+    <record id="action_hospital_appointment" model="ir.actions.act_window">
+        <field name="name">Appointments</field>
+        <field name="res_model">hospital.appointment</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_appointment_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Book your first appointment!
+            </p>
+            <p>
+                Manage doctor consultation bookings, token numbering, scheduling, and visits.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item for Appointments -->
+    <menuitem id="menu_hospital_appointment"
+              name="Appointments"
+              parent="menu_hospital_registration"
+              action="action_hospital_appointment"
+              sequence="20"/>
+</odoo>

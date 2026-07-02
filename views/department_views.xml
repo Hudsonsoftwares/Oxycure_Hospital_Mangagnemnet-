@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Department Tree View -->
+    <record id="view_hospital_department_tree" model="ir.ui.view">
+        <field name="name">hospital.department.tree</field>
+        <field name="model">hospital.department</field>
+        <field name="arch" type="xml">
+            <list string="Departments" decoration-success="status == 'active'" decoration-info="status == 'inactive'">
+                <field name="department_id"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="status" widget="badge" decoration-success="status == 'active'" decoration-info="status == 'inactive'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Department Form View -->
+    <record id="view_hospital_department_form" model="ir.ui.view">
+        <field name="name">hospital.department.form</field>
+        <field name="model">hospital.department</field>
+        <field name="arch" type="xml">
+            <form string="Department Profile">
+                <header>
+                    <field name="status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="department_id" readonly="1"/>
+                        </h1>
+                        <h2>
+                            <field name="name" placeholder="Department Name"/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="e.g. CARD"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description_page">
+                            <field name="description" placeholder="Provide department details..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Department Search View -->
+    <record id="view_hospital_department_search" model="ir.ui.view">
+        <field name="name">hospital.department.search</field>
+        <field name="model">hospital.department</field>
+        <field name="arch" type="xml">
+            <search string="Search Departments">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Active" name="active_departments" domain="[('status', '=', 'active')]"/>
+                <filter string="Inactive" name="inactive_departments" domain="[('status', '=', 'inactive')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for Departments -->
+    <record id="action_hospital_department" model="ir.actions.act_window">
+        <field name="name">Departments</field>
+        <field name="res_model">hospital.department</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_department_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Register your first department!
+            </p>
+            <p>
+                Manage different hospital departments, including Cardiology, Pediatrics, etc.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item for Departments -->
+    <menuitem id="menu_hospital_department"
+              name="Departments"
+              parent="menu_hospital_configuration"
+              action="action_hospital_department"
+              sequence="30"/>
+</odoo>

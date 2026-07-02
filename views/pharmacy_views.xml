@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pharmacy Request List View -->
+    <record id="view_hospital_pharmacy_request_list" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.request.list</field>
+        <field name="model">hospital.pharmacy.request</field>
+        <field name="arch" type="xml">
+            <list string="Pharmacy Requests" decoration-info="status == 'pending'" decoration-success="status == 'dispensed'" decoration-muted="status == 'cancelled'" create="false" edit="false">
+                <field name="name"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="billing_id"/>
+                <field name="request_datetime"/>
+                <field name="status" widget="badge" decoration-warning="status == 'pending'" decoration-success="status == 'dispensed'" decoration-danger="status == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Pharmacy Request Form View -->
+    <record id="view_hospital_pharmacy_request_form" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.request.form</field>
+        <field name="model">hospital.pharmacy.request</field>
+        <field name="arch" type="xml">
+            <form string="Pharmacy Dispensing Request" create="false">
+                <header>
+                    <button name="action_dispense" type="object" string="Dispense Medicines" class="oe_highlight" invisible="status != 'pending'"/>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Dispensed" bg_color="text-bg-success" invisible="status != 'dispensed'"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Patient &amp; Doctor Information">
+                            <field name="patient_id"/>
+                            <field name="doctor_id"/>
+                        </group>
+                        <group string="Request Details">
+                            <field name="op_id"/>
+                            <field name="billing_id"/>
+                            <field name="request_datetime"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Prescribed Medicines" name="medicines_tab">
+                            <field name="line_ids" readonly="1">
+                                <list>
+                                    <field name="medicine_id"/>
+                                    <field name="qty"/>
+                                    <field name="dosage"/>
+                                    <field name="duration"/>
+                                    <field name="instructions"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Pharmacy Request Search View -->
+    <record id="view_hospital_pharmacy_request_search" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.request.search</field>
+        <field name="model">hospital.pharmacy.request</field>
+        <field name="arch" type="xml">
+            <search string="Search Pharmacy Requests">
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('op_id.op_number', 'ilike', self), ('patient_id', 'ilike', self)]"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="billing_id"/>
+                <separator/>
+                <filter string="Pending" name="pending" domain="[('status', '=', 'pending')]"/>
+                <filter string="Dispensed" name="dispensed" domain="[('status', '=', 'dispensed')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('status', '=', 'cancelled')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Patient" name="group_by_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Doctor" name="group_by_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Status" name="group_by_status" context="{'group_by': 'status'}"/>
+                    <filter string="Date" name="group_by_date" context="{'group_by': 'request_datetime'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Pharmacy Request Action -->
+    <record id="action_hospital_pharmacy_request" model="ir.actions.act_window">
+        <field name="name">Pharmacy Requests</field>
+        <field name="res_model">hospital.pharmacy.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_pharmacy_request_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No pharmacy dispensing requests found!
+            </p>
+            <p>
+                Requests will appear here automatically when billing is completed (paid) for patient prescribed medicines.
+            </p>
+        </field>
+    </record>
+
+    <!-- Pharmacy Request Menu Item -->
+    <menuitem id="menu_hospital_pharmacy_request"
+              name="Pharmacy"
+              parent="menu_hospital_root"
+              action="action_hospital_pharmacy_request"
+              sequence="28"/>
+</odoo>

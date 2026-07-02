@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hospital_patient,hospital.patient,model_hospital_patient,,1,1,1,1
+access_hospital_department,hospital.department,model_hospital_department,,1,1,1,1
+access_hospital_doctor,hospital.doctor,model_hospital_doctor,,1,1,1,1
+access_hospital_appointment,hospital.appointment,model_hospital_appointment,,1,1,1,1
+access_hospital_op,hospital.op,model_hospital_op,,1,1,1,1
+access_hospital_prescription_line,hospital.prescription.line,model_hospital_prescription_line,,1,1,1,1
+access_hospital_medicine,hospital.medicine,model_hospital_medicine,,1,1,1,1
+access_hospital_lab_test,hospital.lab.test,model_hospital_lab_test,,1,1,1,1
+access_hospital_lab_request_line,hospital.lab.request.line,model_hospital_lab_request_line,,1,1,1,1
+access_hospital_lab_processing,hospital.lab.processing,model_hospital_lab_processing,,1,1,1,1
+access_hospital_lab_request,hospital.lab.request,model_hospital_lab_request,,1,1,1,1
+access_hospital_billing,hospital.billing,model_hospital_billing,,1,1,1,1
+access_hospital_billing_line,hospital.billing.line,model_hospital_billing_line,,1,1,1,1
+access_hospital_pharmacy_request,hospital.pharmacy.request,model_hospital_pharmacy_request,,1,1,1,1
+access_hospital_pharmacy_request_line,hospital.pharmacy.request.line,model_hospital_pharmacy_request_line,,1,1,1,1
+access_hospital_dashboard,hospital.dashboard,model_hospital_dashboard,,1,1,1,1

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- QWeb PDF Report Action -->
+    <record id="action_report_hospital_billing" model="ir.actions.report">
+        <field name="name">Invoice / Receipt</field>
+        <field name="model">hospital.billing</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hospital_management.report_hospital_billing_receipt</field>
+        <field name="report_file">hospital_management.report_hospital_billing_receipt</field>
+        <field name="binding_model_id" ref="model_hospital_billing"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- QWeb Report Template -->
+    <template id="report_hospital_billing_receipt">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; color: #333;">
+                        <div class="text-center" style="margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px;">
+                            <h2>Hospital Invoice / Receipt</h2>
+                        </div>
+                        
+                        <div class="row" style="margin-bottom: 30px;">
+                            <div class="col-6">
+                                <h5><strong>Invoice Details</strong></h5>
+                                <strong>Invoice No:</strong> <span t-field="doc.name"/><br/>
+                                <strong>Billing Date:</strong> <span t-field="doc.billing_date"/><br/>
+                                <strong>Payment Status:</strong> <span t-field="doc.payment_status"/><br/>
+                            </div>
+                            <div class="col-6">
+                                <h5><strong>Patient &amp; Consultation Info</strong></h5>
+                                <strong>Patient Name:</strong> <span t-field="doc.patient_id.name"/><br/>
+                                <strong>Patient UHID:</strong> <span t-field="doc.patient_id.patient_id"/><br/>
+                                <strong>Doctor:</strong> <span t-field="doc.doctor_id.name"/><br/>
+                                <strong>OP Visit Number:</strong> <span t-field="doc.op_id.op_number"/>
+                            </div>
+                        </div>
+
+                        <h4 style="border-bottom: 1px solid #ddd; padding-bottom: 5px;">Invoice Lines</h4>
+                        <table class="table table-striped table-sm" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                            <thead>
+                                <tr style="background-color: #f2f2f2;">
+                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Description</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Quantity</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="doc.bill_line_ids" t-as="line">
+                                    <tr>
+                                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><span t-field="line.name"/></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;"><span t-field="line.price" t-options='{"widget": "monetary", "display_currency": doc.env.company.currency_id}'/></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;"><span t-field="line.qty"/></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.env.company.currency_id}'/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <div class="row justify-content-end" style="margin-top: 20px;">
+                            <div class="col-4">
+                                <table class="table table-sm" style="width: 100%;">
+                                    <tr style="border-top: 2px solid #333;">
+                                        <td style="padding: 8px;"><strong>Total Amount:</strong></td>
+                                        <td style="padding: 8px; text-align: right;"><strong><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.env.company.currency_id}'/></strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="text-center" style="margin-top: 50px;" t-if="doc.payment_status == 'paid'">
+                            <h2 style="color: #4CAF50; border: 3px double #4CAF50; display: inline-block; padding: 10px 30px; letter-spacing: 2px;">PAID</h2>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

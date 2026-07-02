@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Medicine List View -->
+    <record id="view_hospital_medicine_list" model="ir.ui.view">
+        <field name="name">hospital.medicine.list</field>
+        <field name="model">hospital.medicine</field>
+        <field name="arch" type="xml">
+            <list string="Medicines" decoration-success="status == 'active'" decoration-muted="status == 'inactive'">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="price"/>
+                <field name="qty_available"/>
+                <field name="expiry_date"/>
+                <field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'inactive'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Medicine Form View -->
+    <record id="view_hospital_medicine_form" model="ir.ui.view">
+        <field name="name">hospital.medicine.form</field>
+        <field name="model">hospital.medicine</field>
+        <field name="arch" type="xml">
+            <form string="Medicine Info">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Medicine Name (e.g. Paracetamol 650mg)"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Basic Info">
+                            <field name="code" placeholder="e.g. MED001"/>
+                            <field name="price"/>
+                            <field name="status"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Inventory &amp; Dates">
+                            <field name="qty_available"/>
+                            <field name="reorder_level"/>
+                            <field name="expiry_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description_tab">
+                            <field name="description" placeholder="Enter medicine description/notes here..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Medicine Search View -->
+    <record id="view_hospital_medicine_search" model="ir.ui.view">
+        <field name="name">hospital.medicine.search</field>
+        <field name="model">hospital.medicine</field>
+        <field name="arch" type="xml">
+            <search string="Search Medicines">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Active Status" name="active_status" domain="[('status', '=', 'active')]"/>
+                <filter string="Inactive Status" name="inactive_status" domain="[('status', '=', 'inactive')]"/>
+                <separator/>
+                <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Medicine Action -->
+    <record id="action_hospital_medicine" model="ir.actions.act_window">
+        <field name="name">Medicines</field>
+        <field name="res_model">hospital.medicine</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_medicine_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first medicine!
+            </p>
+            <p>
+                Create a master list of medicines that can be prescribed by doctors during consultations.
+            </p>
+        </field>
+    </record>
+
+    <!-- Medicine Menu Item -->
+    <menuitem id="menu_hospital_medicine"
+              name="Medicines"
+              parent="menu_hospital_configuration"
+              action="action_hospital_medicine"
+              sequence="40"/>
+</odoo>

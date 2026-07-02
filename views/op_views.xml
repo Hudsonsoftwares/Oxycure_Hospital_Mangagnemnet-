@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- OP Tree View -->
+    <record id="view_hospital_op_tree" model="ir.ui.view">
+        <field name="name">hospital.op.tree</field>
+        <field name="model">hospital.op</field>
+        <field name="arch" type="xml">
+            <list string="OP Registrations" decoration-danger="priority == 'emergency'" decoration-warning="priority == 'urgent'" decoration-info="priority == 'semi_urgent'" decoration-success="status == 'completed'" decoration-muted="status == 'cancelled'">
+                <field name="op_number"/>
+                <field name="patient_id"/>
+                <field name="uhid"/>
+                <field name="doctor_id"/>
+                <field name="registration_datetime"/>
+                <field name="token_number"/>
+                <field name="priority" widget="badge" decoration-danger="priority == 'emergency'" decoration-warning="priority == 'urgent'" decoration-info="priority == 'semi_urgent'" decoration-success="priority == 'normal'"/>
+                <field name="status" widget="badge" decoration-info="status == 'waiting'" decoration-primary="status == 'checked_in'" decoration-warning="status == 'consultation'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- OP Form View -->
+    <record id="view_hospital_op_form" model="ir.ui.view">
+        <field name="name">hospital.op.form</field>
+        <field name="model">hospital.op</field>
+        <field name="arch" type="xml">
+            <form string="OP Registration">
+                <header>
+                    <field name="status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="op_number" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="OP Registration Details">
+                            <field name="appointment_id" options="{'no_create': True}"/>
+                            <field name="patient_id" options="{'no_create': True}"/>
+                            <field name="uhid" readonly="1"/>
+                            <field name="doctor_id" options="{'no_create': True}"/>
+                            <field name="department_id" readonly="1"/>
+                        </group>
+                        <group string="Visit Schedule">
+                            <field name="registration_datetime"/>
+                            <field name="token_number"/>
+                            <field name="visit_type"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Triage &amp; Vitals" name="triage_vitals">
+                            <group>
+                                <group string="Triage Info">
+                                    <field name="triage_nurse_id" options="{'no_create': True}"/>
+                                    <field name="triage_datetime"/>
+                                    <field name="priority"/>
+                                </group>
+                                <group string="Growth Metrics">
+                                    <field name="height"/>
+                                    <field name="weight"/>
+                                    <field name="bmi" readonly="1"/>
+                                </group>
+                            </group>
+                            <group string="Vital Signs">
+                                <group>
+                                    <field name="temperature"/>
+                                    <field name="blood_pressure"/>
+                                    <field name="pulse_rate"/>
+                                </group>
+                                <group>
+                                    <field name="respiratory_rate"/>
+                                    <field name="spo2"/>
+                                    <field name="pain_score"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Clinical Assessment" name="clinical_assessment">
+                            <group>
+                                <field name="chief_complaint" placeholder="Describe main complaints..."/>
+                                <field name="present_illness" placeholder="History of present illness details..."/>
+                                <field name="past_history" placeholder="Previous medical history/surgical records..."/>
+                            </group>
+                            <group string="Patient History (Read-only)">
+                                <field name="allergies"/>
+                                <field name="current_medications"/>
+                            </group>
+                            <group string="Nursing Notes">
+                                <field name="nurse_notes" placeholder="Nurse observations, emergency actions taken..."/>
+                            </group>
+                        </page>
+                        <page string="Doctor Consultation" name="doctor_consultation">
+                            <group>
+                                <field name="diagnosis" placeholder="Enter diagnostic conclusions..."/>
+                                <field name="clinical_notes" placeholder="Clinical advice, symptoms history, observations..."/>
+                            </group>
+                            <separator string="Prescribed Medicines"/>
+                            <field name="prescription_line_ids">
+                                <list editable="bottom">
+                                    <field name="medicine_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="dosage"/>
+                                    <field name="duration"/>
+                                    <field name="qty"/>
+                                    <field name="instructions"/>
+                                </list>
+                            </field>
+                            <separator string="Laboratory Test Requests"/>
+                            <field name="lab_request_line_ids">
+                                <list editable="bottom">
+                                    <field name="test_id" options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="notes" placeholder="e.g. Fasting required"/>
+                                    <field name="status" widget="badge" decoration-warning="status == 'requested'" decoration-success="status == 'completed'" decoration-danger="status == 'cancelled'"/>
+                                    <field name="result_pdf_name" column_invisible="True"/>
+                                    <field name="result_pdf" filename="result_pdf_name" widget="binary" readonly="1"/>
+                                </list>
+                            </field>
+                            <group string="Follow-up Information">
+                                <field name="follow_up_required"/>
+                                <field name="follow_up_date" invisible="not follow_up_required" required="follow_up_required"/>
+                            </group>
+                        </page>
+                        <page string="Actions &amp; Milestones" name="actions_milestones">
+                            <group string="Service Actions Checklist">
+                                <field name="prescription_created"/>
+                                <field name="lab_request_created"/>
+                                <field name="scan_request_created"/>
+                            </group>
+                            <group string="Workflow Milestones">
+                                <field name="pharmacy_completed"/>
+                                <field name="billing_completed"/>
+                            </group>
+                        </page>
+                        <page string="Internal Notes" name="internal_notes">
+                            <field name="notes" placeholder="Add custom notes here..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- OP Search View -->
+    <record id="view_hospital_op_search" model="ir.ui.view">
+        <field name="name">hospital.op.search</field>
+        <field name="model">hospital.op</field>
+        <field name="arch" type="xml">
+            <search string="Search OP Visits">
+                <field name="op_number" filter_domain="['|', '|', ('op_number', 'ilike', self), ('uhid', 'ilike', self), ('patient_id', 'ilike', self)]"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="priority"/>
+                <separator/>
+                <filter string="My Patients" name="my_patients_filter" domain="[('doctor_id.user_id', '=', uid)]"/>
+                <separator/>
+                <filter string="Waiting" name="waiting_op" domain="[('status', '=', 'waiting')]"/>
+                <filter string="Checked In" name="checked_in_op" domain="[('status', '=', 'checked_in')]"/>
+                <filter string="In Consultation" name="consultation_op" domain="[('status', '=', 'consultation')]"/>
+                <filter string="Completed" name="completed_op" domain="[('status', '=', 'completed')]"/>
+                <filter string="Cancelled" name="cancelled_op" domain="[('status', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Emergency" name="priority_emergency" domain="[('priority', '=', 'emergency')]"/>
+                <filter string="Urgent" name="priority_urgent" domain="[('priority', '=', 'urgent')]"/>
+                <filter string="Semi-Urgent" name="priority_semi_urgent" domain="[('priority', '=', 'semi_urgent')]"/>
+                <filter string="Normal" name="priority_normal" domain="[('priority', '=', 'normal')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Doctor" name="group_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Department" name="group_department" context="{'group_by': 'department_id'}"/>
+                    <filter string="Priority" name="group_priority" context="{'group_by': 'priority'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'registration_datetime'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for OP -->
+    <record id="action_hospital_op" model="ir.actions.act_window">
+        <field name="name">OP Registrations</field>
+        <field name="res_model">hospital.op</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_op_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first OP visit!
+            </p>
+            <p>
+                Record patient triage measurements, vitals, history, clinical notes, and follow-ups.
+            </p>
+        </field>
+    </record>
+
+    <!-- Action for My Patients -->
+    <record id="action_hospital_my_patients" model="ir.actions.act_window">
+        <field name="name">My Patients</field>
+        <field name="res_model">hospital.op</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="search_view_id" ref="view_hospital_op_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Register your first OP visit!
+            </p>
+            <p>
+                Record patient triage measurements, vitals, history, clinical notes, and follow-ups.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item for My Patients -->
+    <menuitem id="menu_hospital_my_patients"
+              name="My Patients"
+              parent="menu_hospital_root"
+              action="action_hospital_my_patients"
+              sequence="15"/>
+</odoo>

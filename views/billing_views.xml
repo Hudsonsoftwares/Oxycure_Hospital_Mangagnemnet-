@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Billing List View -->
+    <record id="view_hospital_billing_list" model="ir.ui.view">
+        <field name="name">hospital.billing.list</field>
+        <field name="model">hospital.billing</field>
+        <field name="arch" type="xml">
+            <list string="Billing &amp; Invoices" decoration-info="payment_status == 'draft'" decoration-success="payment_status == 'paid'" decoration-muted="payment_status == 'cancelled'">
+                <field name="name"/>
+                <field name="billing_type"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="billing_date"/>
+                <field name="amount_total" widget="monetary"/>
+                <field name="payment_status" widget="badge" decoration-warning="payment_status == 'draft'" decoration-success="payment_status == 'paid'" decoration-danger="payment_status == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Billing Form View -->
+    <record id="view_hospital_billing_form" model="ir.ui.view">
+        <field name="name">hospital.billing.form</field>
+        <field name="model">hospital.billing</field>
+        <field name="arch" type="xml">
+            <form string="Invoice">
+                <header>
+                    <button name="action_pay_bill" type="object" string="Register Payment" class="oe_highlight" invisible="payment_status != 'draft'"/>
+                    <button name="action_print_invoice" type="object" string="Print Invoice" class="oe_highlight" invisible="payment_status == 'draft'"/>
+                    <button name="action_send_email" type="object" string="Send Email" class="btn-secondary" invisible="payment_status != 'paid'"/>
+                    <field name="payment_status" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Paid" bg_color="text-bg-success" invisible="payment_status != 'paid'"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Patient &amp; Doctor Information">
+                            <field name="patient_id"/>
+                            <field name="doctor_id"/>
+                        </group>
+                        <group string="Invoice Details">
+                            <field name="op_id" invisible="not op_id"/>
+                            <field name="appointment_id" invisible="not appointment_id"/>
+                            <field name="billing_type"/>
+                            <field name="billing_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Invoice Lines" name="invoice_lines">
+                            <field name="bill_line_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="price"/>
+                                    <field name="qty"/>
+                                    <field name="subtotal" sum="Total"/>
+                                </list>
+                            </field>
+                            <group class="oe_subtotal_footer oe_right">
+                                <field name="amount_total" class="oe_subtotal_footer_separator"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Billing Search View -->
+    <record id="view_hospital_billing_search" model="ir.ui.view">
+        <field name="name">hospital.billing.search</field>
+        <field name="model">hospital.billing</field>
+        <field name="arch" type="xml">
+            <search string="Search Invoices">
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('op_id.op_number', 'ilike', self), ('patient_id', 'ilike', self)]"/>
+                <field name="op_id"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <separator/>
+                <filter string="Unpaid (Draft)" name="unpaid" domain="[('payment_status', '=', 'draft')]"/>
+                <filter string="Paid" name="paid" domain="[('payment_status', '=', 'paid')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('payment_status', '=', 'cancelled')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Patient" name="group_by_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Doctor" name="group_by_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Status" name="group_by_status" context="{'group_by': 'payment_status'}"/>
+                    <filter string="Invoice Date" name="group_by_date" context="{'group_by': 'billing_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Billing Action -->
+    <record id="action_hospital_billing" model="ir.actions.act_window">
+        <field name="name">Invoices &amp; Payments</field>
+        <field name="res_model">hospital.billing</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hospital_billing_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No invoices found!
+            </p>
+            <p>
+                Invoices will be automatically created when patient OP registrations are saved with consultation fees or requested laboratory tests.
+            </p>
+        </field>
+    </record>
+
+    <!-- Billing Menu Item -->
+    <menuitem id="menu_hospital_billing"
+              name="Billing &amp; Payments"
+              parent="menu_hospital_root"
+              action="action_hospital_billing"
+              sequence="30"/>
+</odoo>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dashboard Form View -->
+    <record id="view_hospital_dashboard_form" model="ir.ui.view">
+        <field name="name">hospital.dashboard.form</field>
+        <field name="model">hospital.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard" create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="dashboard_html" widget="html" readonly="1" nolabel="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Server Action to open Dashboard -->
+    <record id="action_hospital_dashboard_server" model="ir.actions.server">
+        <field name="name">Dashboard</field>
+        <field name="model_id" ref="model_hospital_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_dashboard()
+        </field>
+    </record>
+
+    <!-- Dashboard Menu Item -->
+    <menuitem id="menu_hospital_dashboard"
+              name="Dashboard"
+              parent="menu_hospital_root"
+              action="action_hospital_dashboard_server"
+              sequence="5"/>
+</odoo>
