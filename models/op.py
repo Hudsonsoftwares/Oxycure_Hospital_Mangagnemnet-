@@ -399,7 +399,6 @@ class HospitalOp(models.Model):
                         self.env['hospital.pharmacy.request.line'].create({
                             'request_id': existing_req.id,
                             'medicine_id': line.medicine_id.id,
-                            'qty': 0, # Pharmacist will specify this qty
                             'dosage': line.dosage,
                             'duration': line.duration,
                             'instructions': line.instructions,
@@ -603,7 +602,19 @@ class HospitalOp(models.Model):
                 last_error = str(e)
 
         if not success:
-            raise UserError(_("Failed to generate summary using Gemini API: %s") % (last_error or "Unknown error"))
+            lines = [l.strip() for l in (self.conversation_transcript or "").split('\n') if l.strip()]
+            transcript_snippet = "\n".join(lines[:6]) if len(lines) > 6 else (self.conversation_transcript or "")
+            self.interaction_summary = (
+                f"**Clinical Summary (Local Fallback - AI rate-limited/offline):**\n"
+                f"The consultation was conducted between Doctor {doctor_name} and Patient {patient_name}.\n"
+                f"A live AI summary could not be retrieved due to API limits ({last_error or 'Unknown error'}).\n\n"
+                f"Transcript snippet:\n{transcript_snippet}"
+            )
+            self.clinical_notes = (
+                f"Interaction recorded between Doctor {doctor_name} and Patient {patient_name}. "
+                f"AI summary is temporarily unavailable due to API rate limits. "
+                f"Please review the conversation transcript directly."
+            )
 
     @api.model
     def translate_text_to_english(self, text):
@@ -667,7 +678,8 @@ class HospitalOp(models.Model):
             except requests.exceptions.RequestException as e:
                 last_error = str(e)
 
-        raise UserError(_("Failed to translate transcript using Gemini API: %s") % (last_error or "Unknown error"))
+        # Fallback: Return original text instead of blocking the user
+        return text
 
 
 

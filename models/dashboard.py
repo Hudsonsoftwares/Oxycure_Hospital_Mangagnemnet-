@@ -176,7 +176,23 @@ class HospitalDashboard(models.TransientModel):
                             last_error = str(ex)
                     
                     if not success:
-                        ai_insight = f"Failed to load AI Insight (Gemini API returned error: {last_error})."
+                        alerts = []
+                        if low_stock_count > 0:
+                            alerts.append(f"{low_stock_count} medicines are low in stock.")
+                        if expired_count > 0:
+                            alerts.append(f"{expired_count} batches have expired.")
+                        if expiring_count > 0:
+                            alerts.append(f"{expiring_count} batches are expiring soon.")
+                        if pending_payments_count > 0:
+                            alerts.append(f"{pending_payments_count} billing payments are pending (${pending_payments_amount:.2f}).")
+                        
+                        alert_summary = " ".join(alerts) if alerts else "All systems are operating normally."
+                        ai_insight = (
+                            f"Hospital Operations Summary (AI engine offline/rate-limited): "
+                            f"Today has recorded {daily_patient_count} patient visits with {doctors_on_duty} active doctors. "
+                            f"Pharmacy sales stand at ${pharmacy_sales:.2f} with total revenue at ${total_revenue:.2f}. "
+                            f"{alert_summary} Please review stock levels and pending invoice records."
+                        )
                 except Exception as e:
                     ai_insight = f"Failed to connect to AI engine: {str(e)}"
             else:

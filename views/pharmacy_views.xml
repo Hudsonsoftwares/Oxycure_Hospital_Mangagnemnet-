@@ -49,9 +49,11 @@
                     <notebook>
                         <page string="Prescribed Medicines" name="medicines_tab">
                             <field name="line_ids" readonly="status != 'draft'">
-                                <list editable="bottom" create="false" delete="false">
-                                    <field name="medicine_id" readonly="1"/>
+                                <list editable="bottom">
+                                    <field name="medicine_id"/>
                                     <field name="qty"/>
+                                    <field name="is_stock_available" column_invisible="1"/>
+                                    <field name="stock_availability_info" readonly="1" decoration-success="is_stock_available" decoration-danger="not is_stock_available"/>
                                     <field name="dosage" readonly="1"/>
                                     <field name="duration" readonly="1"/>
                                     <field name="instructions" readonly="1"/>

@@ -125,6 +125,15 @@ class HospitalMedicine(models.Model):
         string="Suppliers",
         help="Suppliers that provide this medicine"
     )
+    alternative_ids = fields.Many2many(
+        "hospital.medicine",
+        "hospital_medicine_alternative_rel",
+        "medicine_id",
+        "alternative_id",
+        string="Alternative Medicines",
+        domain="[('status', '=', 'active')]",
+        help="Substitutes/Alternatives for this medicine when it is out of stock"
+    )
 
     qty_available = fields.Integer(
         string="Quantity Available",
