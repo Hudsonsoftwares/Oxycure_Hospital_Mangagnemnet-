@@ -67,6 +67,17 @@ class HospitalPharmacyAlert(models.Model):
                         "message": f"Medicine '{med.name}' is running low on stock. Current quantity: {med.qty_available} (Threshold: {threshold}).",
                         "status": "active"
                     })
+                
+                # Trigger AI Auto-Restocking if no draft PO line exists for this medicine
+                existing_draft_line = self.env["hospital.medicine.purchase.line"].search([
+                    ("medicine_id", "=", med.id),
+                    ("purchase_id.state", "=", "draft")
+                ], limit=1)
+                if not existing_draft_line:
+                    try:
+                        med.action_ai_auto_restock()
+                    except Exception:
+                        pass
             else:
                 # If stock has been replenished, auto-resolve the active alert
                 active_alerts = self.search([

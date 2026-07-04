@@ -13,6 +13,7 @@
                 <field name="category_id"/>
                 <field name="price" string="Selling Price"/>
                 <field name="qty_available"/>
+                <field name="stock_status" widget="badge" decoration-success="stock_status == 'in_stock'" decoration-warning="stock_status == 'low_stock'" decoration-danger="stock_status == 'out_of_stock'"/>
                 <field name="expiry_date"/>
                 <field name="requires_prescription" widget="boolean_toggle"/>
                 <field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'inactive'"/>
@@ -26,6 +27,9 @@
         <field name="model">hospital.medicine</field>
         <field name="arch" type="xml">
             <form string="Medicine Info">
+                <header>
+                    <button name="action_ai_auto_restock" type="object" string="AI Auto-Restock" class="btn-primary" icon="fa-magic" invisible="stock_status == 'in_stock'"/>
+                </header>
                 <sheet>
                     <field name="image" widget="image" class="oe_avatar" options="{'zoom': true, 'preview_image': 'image'}"/>
                     <div class="oe_title">
@@ -70,8 +74,12 @@
                         </group>
                         <group string="Current Stock (Computed)">
                             <field name="qty_available" readonly="1"/>
+                            <field name="stock_status" widget="badge" decoration-success="stock_status == 'in_stock'" decoration-warning="stock_status == 'low_stock'" decoration-danger="stock_status == 'out_of_stock'"/>
                             <field name="expiry_date" readonly="1"/>
                         </group>
+                    </group>
+                    <group string="Approved Suppliers">
+                        <field name="supplier_ids" widget="many2many_tags" placeholder="Select approved suppliers for this medicine..." options="{'no_create': True, 'no_create_edit': True}"/>
                     </group>
                     <notebook>
                         <page string="Active Batches" name="batches">
