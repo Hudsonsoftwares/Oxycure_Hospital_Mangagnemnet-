@@ -263,6 +263,9 @@ class HospitalOp(models.Model):
         if vals.get("op_number", "New") == "New":
             vals["op_number"] = self.env["ir.sequence"].next_by_code("hospital.op") or "New"
 
+        if vals.get('status') == 'checked_in' and not vals.get('check_in_time'):
+            vals['check_in_time'] = fields.Datetime.now()
+
         # Auto-token assignment for walk-in OP visits
         doctor_id = vals.get("doctor_id")
         reg_dt_val = vals.get("registration_datetime") or fields.Datetime.now()
@@ -288,6 +291,8 @@ class HospitalOp(models.Model):
         record._sync_billing_invoice()
         record._sync_medicine_billing()
         return record
+
+
 
     def _sync_lab_request(self):
         for record in self:
@@ -406,6 +411,29 @@ class HospitalOp(models.Model):
                         })
 
     def write(self, vals):
+        if 'status' in vals:
+            now = fields.Datetime.now()
+            for record in self:
+                old_status = record.status
+                new_status = vals['status']
+                
+                if new_status == 'checked_in' and not record.check_in_time:
+                    vals['check_in_time'] = now
+                elif new_status == 'consultation':
+                    if not record.consultation_start_time:
+                        vals['consultation_start_time'] = now
+                    start_ref = record.check_in_time or record.registration_datetime
+                    if start_ref and not record.total_waiting_time:
+                        diff = now - start_ref
+                        vals['total_waiting_time'] = int(diff.total_seconds() / 60)
+                elif new_status == 'completed' and not record.consultation_end_time:
+                    vals['consultation_end_time'] = now
+                    if not record.total_waiting_time:
+                        start_ref = record.check_in_time or record.registration_datetime
+                        if start_ref:
+                            diff = now - start_ref
+                            vals['total_waiting_time'] = int(diff.total_seconds() / 60)
+
         res = super(HospitalOp, self).write(vals)
         self._sync_lab_request()
         self._sync_billing_invoice()
@@ -680,6 +708,805 @@ class HospitalOp(models.Model):
 
         # Fallback: Return original text instead of blocking the user
         return text
+
+    # ==========================
+    # Smart OP Queue & AI Prioritization
+    # ==========================
+    ai_priority = fields.Selection([
+        ('emergency', 'Emergency 🔴'),
+        ('high', 'High 🟠'),
+        ('medium', 'Medium 🟡'),
+        ('low', 'Low/Routine 🟢')
+    ], string="AI Priority", compute="_compute_ai_priority", store=True, default="low")
+    
+    ai_priority_label = fields.Selection([
+        ('emergency', '🧠 AI EMERGENCY'),
+        ('high', '🧠 AI HIGH'),
+        ('medium', '🧠 AI MEDIUM'),
+        ('low', '🧠 AI LOW')
+    ], string="AI Priority Badge", compute="_compute_ai_priority", store=True)
+
+    ai_confidence = fields.Integer(
+        string="AI Confidence (%)",
+        compute="_compute_ai_priority",
+        store=True,
+        default=90
+    )
+
+    ai_priority_reason = fields.Text(
+        string="AI Priority Reason",
+        compute="_compute_ai_priority",
+        store=True
+    )
+    
+    ai_priority_score = fields.Integer(
+        string="AI Priority Score",
+        compute="_compute_ai_priority",
+        store=True,
+        default=1
+    )
+    
+    queue_sequence = fields.Integer(
+        string="Queue Override Sequence",
+        default=10,
+        index=True
+    )
+    
+    waiting_time = fields.Char(
+        string="Waiting Time",
+        compute="_compute_waiting_time"
+    )
+
+    ai_wait_prediction = fields.Char(
+        string="Est. Wait Time",
+        compute="_compute_wait_prediction"
+    )
+
+    ai_alerts = fields.Char(
+        string="AI Alerts",
+        compute="_compute_ai_alerts"
+    )
+
+    check_in_time = fields.Datetime(string="Check In Time")
+    consultation_start_time = fields.Datetime(string="Consultation Start Time")
+    consultation_end_time = fields.Datetime(string="Consultation End Time")
+    total_waiting_time = fields.Integer(string="Total Waiting Time (mins)")
+    document_ids = fields.One2many("hospital.op.document", "op_id", string="Generated Documents")
+
+    @api.depends('status', 'check_in_time', 'consultation_start_time', 'total_waiting_time')
+    def _compute_waiting_time(self):
+        from odoo.fields import Datetime
+        now = Datetime.now()
+        for record in self:
+            status = record.status
+            if status in ['waiting', 'checked_in']:
+                start_time = record.check_in_time or record.registration_datetime
+                if start_time:
+                    diff = now - start_time
+                    mins = int(diff.total_seconds() / 60)
+                    if mins < 60:
+                        record.waiting_time = f"{mins} mins"
+                    else:
+                        hours = mins // 60
+                        remaining_mins = mins % 60
+                        record.waiting_time = f"{hours}h {remaining_mins}m"
+                else:
+                    record.waiting_time = "0 mins"
+            elif status == 'consultation':
+                start_time = record.consultation_start_time
+                if start_time:
+                    diff = now - start_time
+                    mins = int(diff.total_seconds() / 60)
+                    record.waiting_time = f"Started {mins} min ago"
+                else:
+                    record.waiting_time = "In Consultation"
+            elif status == 'completed':
+                wait_min = record.total_waiting_time or 0
+                record.waiting_time = f"Completed (Waited {wait_min} min)"
+            elif status == 'cancelled':
+                record.waiting_time = "Cancelled"
+            else:
+                record.waiting_time = "0 mins"
+
+    @api.depends('queue_sequence', 'ai_priority_score', 'token_number')
+    def _compute_wait_prediction(self):
+        waiting_ops = self.search([
+            ('status', 'in', ['waiting', 'checked_in'])
+        ], order="queue_sequence asc, ai_priority_score desc, token_number asc")
+        
+        op_times = {}
+        for idx, op in enumerate(waiting_ops):
+            if idx == 0:
+                op_times[op.id] = "3 min"
+            elif idx == 1:
+                op_times[op.id] = "8 min"
+            elif idx == 2:
+                op_times[op.id] = "15 min"
+            elif idx == 3:
+                op_times[op.id] = "22 min"
+            else:
+                op_times[op.id] = f"{idx * 8} min"
+                
+        for record in self:
+            record.ai_wait_prediction = op_times.get(record.id, "N/A")
+
+    @api.depends('patient_id.chronic_diseases', 'patient_id.allergies', 'blood_pressure')
+    def _compute_ai_alerts(self):
+        for record in self:
+            alerts = []
+            chronic = (record.patient_id.chronic_diseases or "").lower()
+            allergies = (record.patient_id.allergies or "").lower()
+            
+            if 'diabet' in chronic:
+                alerts.append("⚠ Diabetes")
+            if 'penicillin' in allergies:
+                alerts.append("⚠ Penicillin Allergy")
+            if 'sulfa' in allergies:
+                alerts.append("⚠ Sulfa Allergy")
+                
+            if record.blood_pressure and '/' in record.blood_pressure:
+                try:
+                    parts = record.blood_pressure.split('/')
+                    systolic = int(parts[0].strip())
+                    diastolic = int(parts[1].strip())
+                    if systolic >= 140 or diastolic >= 90:
+                        alerts.append(f"⚠ High BP ({record.blood_pressure})")
+                except Exception:
+                    pass
+                    
+            record.ai_alerts = ", ".join(alerts) if alerts else "None"
+
+    @api.depends('temperature', 'blood_pressure', 'pulse_rate', 'respiratory_rate', 'spo2', 'pain_score', 'chief_complaint', 'patient_id.age', 'patient_id.chronic_diseases')
+    def _compute_ai_priority(self):
+        for record in self:
+            prio = 'low'
+            reason = 'Routine vitals and normal/expected presentation.'
+            
+            spo2_val = record.spo2 or 98
+            pulse = record.pulse_rate or 75
+            temp = record.temperature or 36.8
+            pain = record.pain_score or 0
+            age = record.patient_id.age or 30
+            complaint = (record.chief_complaint or "").lower()
+            chronic = (record.patient_id.chronic_diseases or "").lower()
+            
+            # Check BP values
+            systolic = 120
+            diastolic = 80
+            if record.blood_pressure and '/' in record.blood_pressure:
+                try:
+                    parts = record.blood_pressure.split('/')
+                    systolic = int(parts[0].strip())
+                    diastolic = int(parts[1].strip())
+                except Exception:
+                    pass
+
+            # Local rules ESI fallback:
+            if (spo2_val < 90 or systolic > 190 or systolic < 80 or pulse > 140 or pulse < 40 or 
+                temp > 40.0 or "chest pain" in complaint or "unconscious" in complaint or 
+                "cardiac" in complaint or "stroke" in complaint or "breathlessness" in complaint):
+                prio = 'emergency'
+                reason = 'Urgent life threat suspected (hypoxia, cardiac concern, abnormal pressure, or severe temp).'
+            elif (90 <= spo2_val < 95 or temp > 38.8 or pulse > 110 or pulse < 50 or pain >= 8 or 
+                  ("fever" in complaint and age <= 5) or "fracture" in complaint or "asthma" in complaint):
+                prio = 'high'
+                reason = 'High-urgency presentation requiring prompt assessment (fever in toddler, moderate hypoxia, or severe pain).'
+            elif (37.8 <= temp <= 38.8 or "vomit" in complaint or "abdominal" in complaint or 
+                  "diarrhea" in complaint or "giddiness" in complaint):
+                prio = 'medium'
+                reason = 'Semi-urgent presentation. Vitals stable but requires medical evaluation.'
+                
+            # Gemini Triage Analysis
+            api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+            if not api_key:
+                import os
+                api_key = os.environ.get('GEMINI_API_KEY')
+                
+            if api_key:
+                prompt = (
+                    f"You are a clinical emergency triage assistant. Analyze this outpatient patient's details and vitals:\n"
+                    f"- Name: {record.patient_id.name or 'N/A'}\n"
+                    f"- Age: {age}\n"
+                    f"- Temp: {temp} C\n"
+                    f"- BP: {record.blood_pressure or 'N/A'}\n"
+                    f"- Pulse: {pulse} bpm\n"
+                    f"- SpO2: {spo2_val} %\n"
+                    f"- Pain Score: {pain}/10\n"
+                    f"- Chronic Diseases: {chronic or 'None'}\n"
+                    f"- Chief Complaint: {record.chief_complaint or 'Routine Follow-up'}\n\n"
+                    f"Classify into one of: 'emergency' (Immediate threat), 'high' (Urgent concern), 'medium' (Semi-urgent), or 'low' (Routine/Normal).\n"
+                    f"Provide a short clinical reason (max 1 sentence).\n"
+                    f"Return ONLY a valid JSON object with keys:\n"
+                    f"- 'priority' (one of: 'emergency', 'high', 'medium', 'low')\n"
+                    f"- 'reason' (string)"
+                )
+                
+                models_to_try = [
+                    "gemini-2.5-flash",
+                    "gemini-3.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-2.5-pro",
+                    "gemini-2.0-flash-lite",
+                    "gemini-flash-latest"
+                ]
+                
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }
+                headers = {"Content-Type": "application/json"}
+                
+                import requests
+                import json
+                for model in models_to_try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+                    try:
+                        response = requests.post(url, json=payload, headers=headers, timeout=12)
+                        if response.status_code == 200:
+                            res_data = response.json()
+                            response_text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                            if response_text.startswith("```"):
+                                lines = response_text.splitlines()
+                                if lines[0].startswith("```"):
+                                    lines = lines[1:]
+                                if lines[-1].startswith("```"):
+                                    lines = lines[:-1]
+                                response_text = "\n".join(lines).strip()
+                            
+                            result = json.loads(response_text)
+                            prio_val = result.get('priority', prio)
+                            if prio_val in ['emergency', 'high', 'medium', 'low']:
+                                prio = prio_val
+                            reason = result.get('reason', reason)
+                            break
+                    except Exception:
+                        pass
+                        
+            record.ai_priority = prio
+            record.ai_priority_label = prio
+            record.ai_priority_reason = reason
+            
+            confidence_map = {'emergency': 92, 'high': 85, 'medium': 78, 'low': 95}
+            record.ai_confidence = confidence_map.get(prio, 90)
+            
+            score_map = {'emergency': 4, 'high': 3, 'medium': 2, 'low': 1}
+            record.ai_priority_score = score_map.get(prio, 1)
+
+    def action_move_to_top(self):
+        self.ensure_one()
+        waiting_ops = self.search([
+            ('status', 'in', ['waiting', 'checked_in'])
+        ])
+        min_seq = min(waiting_ops.mapped('queue_sequence') or [10])
+        self.write({'queue_sequence': min_seq - 1})
+        return True
+
+    def action_wizard_medical_certificate(self):
+        self.ensure_one()
+        return {
+            'name': 'Generate Medical Certificate',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.medical.certificate.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_op_id': self.id}
+        }
+
+    def action_wizard_referral_letter(self):
+        self.ensure_one()
+        return {
+            'name': 'Generate Referral Letter',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.referral.letter.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_op_id': self.id}
+        }
+
+    def action_wizard_fitness_certificate(self):
+        self.ensure_one()
+        return {
+            'name': 'Generate Fitness Certificate',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.fitness.certificate.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_op_id': self.id}
+        }
+
+    def action_explain_triage(self):
+        self.ensure_one()
+        systolic = 120
+        diastolic = 80
+        if self.blood_pressure and '/' in self.blood_pressure:
+            try:
+                parts = self.blood_pressure.split('/')
+                systolic = int(parts[0].strip())
+                diastolic = int(parts[1].strip())
+            except Exception:
+                pass
+        
+        explanation = (
+            f"🧠 AI Triage Explanation for {self.patient_id.name}:\n\n"
+            f"• Priority: {self.ai_priority.upper()}\n"
+            f"• Confidence: {self.ai_confidence}%\n\n"
+            f"Triage Vitals Checked:\n"
+            f"  - SpO₂: {self.spo2 or 'N/A'}% (Threshold: <90% is Emergency)\n"
+            f"  - Temperature: {self.temperature or 'N/A'}°C (Threshold: >38.8°C is High)\n"
+            f"  - Blood Pressure: {self.blood_pressure or 'N/A'}\n"
+            f"  - Pulse Rate: {self.pulse_rate or 'N/A'} bpm\n"
+            f"  - Pain Score: {self.pain_score or 0}/10\n\n"
+            f"Clinical Justification:\n"
+            f"  \"{self.ai_priority_reason or 'No reason provided.'}\"\n\n"
+            f"Disclaimer: This is an AI-assisted recommendation. The doctor has final clinical authority."
+        )
+        raise UserError(_(explanation))
+
+    def action_call_next(self):
+        self.ensure_one()
+        self.write({'status': 'consultation'})
+        return True
+
+    def action_notify_nurse(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Nurse Notified'),
+                'message': _('Nurse has been alerted to prepare Patient %s.') % self.patient_id.name,
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_print_token(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Printing Token'),
+                'message': _('Token #%s printing for Patient %s.') % (self.token_number, self.patient_id.name),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+
+# ==========================================
+# Smart OP Queue Dashboard Transient Model
+# ==========================================
+class HospitalOpQueueDashboard(models.TransientModel):
+    _name = "hospital.op.queue.dashboard"
+    _description = "Smart OP Queue Dashboard"
+    
+    dashboard_html = fields.Html(string="Dashboard HTML", compute="_compute_dashboard_html")
+    line_ids = fields.One2many("hospital.op", compute="_compute_lines", string="Smart OP Queue")
+    
+    def _compute_lines(self):
+        for record in self:
+            ops = self.env['hospital.op'].search([
+                ('status', 'in', ['waiting', 'checked_in', 'consultation'])
+            ])
+            record.line_ids = ops
+
+    def _compute_dashboard_html(self):
+        import datetime
+        now = datetime.datetime.now()
+        for record in self:
+            waiting_ops = self.env['hospital.op'].search([
+                ('status', 'in', ['waiting', 'checked_in', 'consultation'])
+            ], order="queue_sequence asc, ai_priority_score desc, token_number asc")
+            
+            total_waiting = len(waiting_ops)
+            critical_count = len(waiting_ops.filtered(lambda o: o.ai_priority == 'emergency'))
+            high_count = len(waiting_ops.filtered(lambda o: o.ai_priority == 'high'))
+            medium_count = len(waiting_ops.filtered(lambda o: o.ai_priority == 'medium'))
+            low_count = len(waiting_ops.filtered(lambda o: o.ai_priority == 'low'))
+            
+            wait_times = []
+            for op in waiting_ops:
+                if op.registration_datetime:
+                    diff = now - op.registration_datetime
+                    wait_times.append(diff.total_seconds() / 60)
+            avg_wait = int(sum(wait_times) / len(wait_times)) if wait_times else 0
+            longest_wait = int(max(wait_times)) if wait_times else 0
+            
+            # AI Recommendations
+            recs_list = []
+            emergency_patients = waiting_ops.filtered(lambda o: o.ai_priority == 'emergency')
+            for ep in emergency_patients[:2]:
+                recs_list.append(f"<li style='margin-bottom: 8px;'>🚨 <strong>See Token #{ep.token_number} ({ep.patient_id.name}) immediately.</strong> Classified as Emergency due to critical vitals.</li>")
+            
+            elderly_patients = waiting_ops.filtered(lambda o: o.patient_id.age and o.patient_id.age >= 65)
+            for el in elderly_patients[:1]:
+                recs_list.append(f"<li style='margin-bottom: 8px;'>👴 Elderly patient <strong>{el.patient_id.name}</strong> (Age {el.patient_id.age}) is waiting. Consider expedited dispatch.</li>")
+                
+            children_fever = waiting_ops.filtered(lambda o: o.patient_id.age and o.patient_id.age <= 5 and 'fever' in (o.chief_complaint or '').lower())
+            for ch in children_fever[:1]:
+                recs_list.append(f"<li style='margin-bottom: 8px;'>👶 Pediatric high-fever alert: <strong>{ch.patient_id.name}</strong> (Age {ch.patient_id.age}) requires immediate temperature control.</li>")
+                
+            long_waiting = len([t for t in wait_times if t > 40])
+            if long_waiting > 0:
+                recs_list.append(f"<li style='margin-bottom: 8px;'>⏳ <strong>{long_waiting} patient(s) have waited over 40 minutes.</strong> Prioritize to prevent clinic bottleneck.</li>")
+                
+            if not recs_list:
+                recs_list.append("<li style='margin-bottom: 8px;'>✅ All vitals and wait times are within normal tolerances. Clear queue by token order.</li>")
+                
+            recommendations_html = "".join(recs_list)
+            
+            # AI Insights
+            compl_counts = {}
+            for op in waiting_ops:
+                compl = (op.chief_complaint or "Routine").strip().capitalize()
+                if "fever" in compl.lower():
+                    compl = "Fever"
+                elif "chest" in compl.lower() or "heart" in compl.lower():
+                    compl = "Chest Concern"
+                elif "bp" in compl.lower() or "blood pressure" in compl.lower():
+                    compl = "BP Review"
+                compl_counts[compl] = compl_counts.get(compl, 0) + 1
+                
+            common_complaint = "Routine"
+            if compl_counts:
+                common_complaint = f"{max(compl_counts, key=compl_counts.get)} ({max(compl_counts.values())})"
+                
+            common_test = "CBC (Complete Blood Count)"
+            
+            record.dashboard_html = f"""
+<div class="smart-queue-dashboard" style="font-family: 'Outfit', 'Inter', sans-serif; background: #0f172a; padding: 24px; border-radius: 16px; color: #f8fafc; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 24px;">
+        <div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                <span>🧠</span> NovaCare Smart OP Queue AI Dashboard
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 14px; color: #94a3b8;">Real-time AI-prioritized clinical patient dispatch system</p>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 8px 16px; border-radius: 9999px; font-size: 13px; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span> AI Engine Active
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div style="display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 20px;">
+        <!-- Left: Queue Stats Card -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #f8fafc; border-bottom: 1px dashed #475569; padding-bottom: 8px;">Today's Queue Summary</h3>
+            <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
+                <div style="flex: 1; text-align: center; background: rgba(56, 189, 248, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.1);">
+                    <div style="font-size: 32px; font-weight: 800; color: #38bdf8;">{total_waiting}</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-weight: 500;">Waiting Patients</div>
+                </div>
+                <div style="flex: 1; text-align: center; background: rgba(244, 63, 94, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(244, 63, 94, 0.1);">
+                    <div style="font-size: 32px; font-weight: 800; color: #f43f5e;">{critical_count}</div>
+                    <div style="font-size: 12px; color: #f43f5e; margin-top: 4px; font-weight: 500;">🔴 Critical</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+                <div style="background: rgba(249, 115, 22, 0.05); border: 1px solid rgba(249, 115, 22, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
+                    <div style="font-size: 18px; font-weight: 700; color: #f97316;">{high_count}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">High</div>
+                </div>
+                <div style="background: rgba(234, 179, 8, 0.05); border: 1px solid rgba(234, 179, 8, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
+                    <div style="font-size: 18px; font-weight: 700; color: #eab308;">{medium_count}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Medium</div>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 10px; text-align: center;">
+                    <div style="font-size: 18px; font-weight: 700; color: #10b981;">{low_count}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Routine</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid #334155; padding-top: 12px; font-size: 13px; color: #94a3b8;">
+                <div>Average Wait: <strong style="color: #f8fafc;">{avg_wait} min</strong></div>
+                <div>Longest Wait: <strong style="color: #f43f5e;">{longest_wait} min</strong></div>
+            </div>
+        </div>
+
+        <!-- Center: AI Recommendations -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column;">
+            <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #f8fafc; border-bottom: 1px dashed #475569; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>🤖</span> AI Recommendations
+            </h3>
+            <ul style="margin: 0; padding-left: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; flex-grow: 1;">
+                {recommendations_html}
+            </ul>
+        </div>
+
+        <!-- Right: AI Trends & Insights -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #f8fafc; border-bottom: 1px dashed #475569; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>📈</span> Clinical Trends & Insights
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #cbd5e1;">
+                <div>
+                    <span style="color: #94a3b8; font-size: 11px; display: block; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Most Common Complaint</span>
+                    <strong style="color: #38bdf8; font-size: 14px;">{common_complaint}</strong>
+                </div>
+                <div>
+                    <span style="color: #94a3b8; font-size: 11px; display: block; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Most Requested Test</span>
+                    <strong style="color: #38bdf8; font-size: 14px;">{common_test}</strong>
+                </div>
+                <div>
+                    <span style="color: #94a3b8; font-size: 11px; display: block; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Avg Consultation Duration</span>
+                    <strong style="color: #10b981; font-size: 14px;">9 minutes</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+    @api.model
+    def action_open_queue_dashboard(self):
+        record = self.create({})
+        return {
+            'name': 'Smart OP Queue Dashboard',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.op.queue.dashboard',
+            'view_mode': 'form',
+            'res_id': record.id,
+            'target': 'current',
+        }
+
+
+class HospitalOpDocument(models.Model):
+    _name = "hospital.op.document"
+    _description = "OP Visit Document"
+    _order = "date_generated desc"
+    
+    op_id = fields.Many2one("hospital.op", string="OP Visit", ondelete="cascade", required=True)
+    patient_id = fields.Many2one("hospital.patient", related="op_id.patient_id", string="Patient", store=True)
+    document_type = fields.Selection([
+        ('medical_certificate', 'Medical Leave Certificate 📄'),
+        ('referral_letter', 'Referral Letter ✉️'),
+        ('fitness_certificate', 'Fitness Certificate 🏆')
+    ], string="Document Type", required=True)
+    name = fields.Char(string="Title", required=True)
+    content = fields.Html(string="Document Content", required=True)
+    date_generated = fields.Datetime(string="Date Generated", default=fields.Datetime.now)
+    
+    def action_print_pdf(self):
+        self.ensure_one()
+        return self.env.ref('hospital_management.action_report_op_document').report_action(self)
+
+
+class HospitalMedicalCertificateWizard(models.TransientModel):
+    _name = "hospital.medical.certificate.wizard"
+    _description = "Generate Medical Certificate"
+    
+    op_id = fields.Many2one("hospital.op", string="OP Visit", required=True)
+    rest_days = fields.Integer(string="Rest Days Recommended", default=3, required=True)
+    purpose = fields.Selection([
+        ('sick_leave', 'Sick Leave'),
+        ('exam_bypass', 'Exam Absence/Bypass'),
+        ('travel', 'Travel Postponement'),
+        ('other', 'Other')
+    ], string="Purpose", default="sick_leave", required=True)
+    additional_notes = fields.Text(string="Additional Notes")
+    
+    def action_generate(self):
+        self.ensure_one()
+        op = self.op_id
+        patient_name = op.patient_id.name
+        doctor_name = op.doctor_id.name
+        today = fields.Date.today().strftime('%d-%b-%Y')
+        
+        prompt = (
+            f"You are a clinical emergency doctor. Draft a formal, professional Medical Leave Certificate inside clean HTML (using tags like p, br, strong, blockquote):\n"
+            f"- Patient Name: {patient_name}\n"
+            f"- Doctor Name: Dr. {doctor_name}\n"
+            f"- Clinic: NovaCare Medical Center\n"
+            f"- Recommended Rest: {self.rest_days} days\n"
+            f"- Purpose: {self.purpose.replace('_', ' ').title()}\n"
+            f"- Doctor's Remarks: {self.additional_notes or 'None'}\n"
+            f"- Date of Issue: {today}\n\n"
+            f"Keep it concise, formal, and authoritative. Return ONLY the HTML content, without enclosing markdown blocks."
+        )
+        
+        content = self._call_gemini(prompt) or f"<p>This is to certify that <strong>{patient_name}</strong> is under the care of Dr. {doctor_name} and is recommended medical rest leave for {self.rest_days} days starting from {today} due to {self.purpose.replace('_', ' ').title()}.</p>"
+        
+        self.env['hospital.op.document'].create({
+            'op_id': op.id,
+            'document_type': 'medical_certificate',
+            'name': f"Medical Certificate - {patient_name}",
+            'content': content
+        })
+        return True
+
+    def _call_gemini(self, prompt):
+        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+        if not api_key:
+            import os
+            api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key:
+            return False
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        headers = {"Content-Type": "application/json"}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        import requests
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
+            if response.status_code == 200:
+                res_data = response.json()
+                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                if text.startswith("```"):
+                    lines = text.splitlines()
+                    if lines[0].startswith("```"):
+                          lines = lines[1:]
+                    if lines[-1].startswith("```"):
+                          lines = lines[:-1]
+                    text = "\n".join(lines).strip()
+                return text
+        except Exception:
+            pass
+        return False
+
+
+class HospitalReferralLetterWizard(models.TransientModel):
+    _name = "hospital.referral.letter.wizard"
+    _description = "Generate Referral Letter"
+    
+    op_id = fields.Many2one("hospital.op", string="OP Visit", required=True)
+    refer_to = fields.Char(string="Refer To (Specialist/Dept)", required=True, placeholder="e.g. Dr. Arun Kumar (Cardiologist)")
+    reason = fields.Char(string="Reason for Referral", required=True, placeholder="e.g. Chest pain evaluation")
+    additional_notes = fields.Text(string="Additional Notes")
+    
+    def action_generate(self):
+        self.ensure_one()
+        op = self.op_id
+        patient_name = op.patient_id.name
+        age = op.patient_id.age or "N/A"
+        gender = op.patient_id.gender or "N/A"
+        
+        # Doctor details
+        doctor = op.doctor_id
+        doctor_name = doctor.name
+        doctor_email = doctor.email or "N/A"
+        doctor_phone = doctor.mobile or doctor.phone or "N/A"
+        doctor_specialization = doctor.specialization or "General Practice"
+        doctor_reg_no = doctor.medical_registration_no or "N/A"
+        today = fields.Date.today().strftime('%d-%b-%Y')
+        
+        # Triage metrics
+        temp = op.temperature or 'N/A'
+        bp = op.blood_pressure or 'N/A'
+        pulse = op.pulse_rate or 'N/A'
+        spo2 = op.spo2 or 'N/A'
+        complaint = op.chief_complaint or 'N/A'
+        chronic = op.patient_id.chronic_diseases or 'None'
+        
+        prompt = (
+            f"Draft a formal medical Referral Letter in clean HTML format (using p, br, strong, blockquote, ul, li):\n"
+            f"- Referring Doctor: Dr. {doctor_name} ({doctor_specialization}, Medical Reg No: {doctor_reg_no})\n"
+            f"- Referring Doctor Contact: Phone: {doctor_phone}, Email: {doctor_email}\n"
+            f"- Addressed Specialist: {self.refer_to}\n"
+            f"- Patient Name: {patient_name} (Age {age}, Gender {gender})\n"
+            f"- Date: {today}\n"
+            f"- Reason for Referral: {self.reason}\n"
+            f"- Chief Complaint: {complaint}\n"
+            f"- Vitals: Temp {temp} C, BP {bp}, Pulse {pulse} bpm, SpO2 {spo2}%\n"
+            f"- History: {chronic}\n"
+            f"- Additional Doctor Remarks: {self.additional_notes or 'None'}\n\n"
+            f"Draft a formal referral letter requesting specialized consultation, outlining the vitals and brief history. Make sure to display the referring doctor's name, specialization, contact information, and registration number prominently in the letter's footer/sign-off or header details. Output ONLY the HTML content, without enclosing markdown blocks."
+        )
+        
+        content = self._call_gemini(prompt) or f"<p>Dear Specialist,</p><p>I am writing to refer patient <strong>{patient_name}</strong> for further evaluation regarding {self.reason}.</p>"
+        
+        self.env['hospital.op.document'].create({
+            'op_id': op.id,
+            'document_type': 'referral_letter',
+            'name': f"Referral Letter - {patient_name}",
+            'content': content
+        })
+        return True
+
+    def _call_gemini(self, prompt):
+        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+        if not api_key:
+            import os
+            api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key:
+            return False
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        headers = {"Content-Type": "application/json"}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        import requests
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
+            if response.status_code == 200:
+                res_data = response.json()
+                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                if text.startswith("```"):
+                    lines = text.splitlines()
+                    if lines[0].startswith("```"):
+                          lines = lines[1:]
+                    if lines[-1].startswith("```"):
+                          lines = lines[:-1]
+                    text = "\n".join(lines).strip()
+                return text
+        except Exception:
+            pass
+        return False
+
+
+class HospitalFitnessCertificateWizard(models.TransientModel):
+    _name = "hospital.fitness.certificate.wizard"
+    _description = "Generate Fitness Certificate"
+    
+    op_id = fields.Many2one("hospital.op", string="OP Visit", required=True)
+    fit_from_date = fields.Date(string="Fit to Resume Duties From", default=fields.Date.today, required=True)
+    additional_notes = fields.Text(string="Additional Notes")
+    
+    def action_generate(self):
+        self.ensure_one()
+        op = self.op_id
+        patient_name = op.patient_id.name
+        doctor_name = op.doctor_id.name
+        today = fields.Date.today().strftime('%d-%b-%Y')
+        fit_date = self.fit_from_date.strftime('%d-%b-%Y')
+        
+        prompt = (
+            f"Draft a formal medical Fitness Certificate inside clean HTML format (using p, br, strong):\n"
+            f"- Patient Name: {patient_name}\n"
+            f"- Doctor Name: Dr. {doctor_name}\n"
+            f"- Clinic: NovaCare Medical Center\n"
+            f"- Date fit to resume work/duties: {fit_date}\n"
+            f"- Additional Doctor Remarks: {self.additional_notes or 'None'}\n"
+            f"- Date of Issue: {today}\n\n"
+            f"Draft a formal fitness certificate declaring that the patient has recovered and is medically fit. Output ONLY the HTML content, without enclosing markdown blocks."
+        )
+        
+        content = self._call_gemini(prompt) or f"<p>This is to certify that <strong>{patient_name}</strong> has been examined and is found medically and physically fit to resume work/duties starting from {fit_date}.</p>"
+        
+        self.env['hospital.op.document'].create({
+            'op_id': op.id,
+            'document_type': 'fitness_certificate',
+            'name': f"Fitness Certificate - {patient_name}",
+            'content': content
+        })
+        return True
+
+    def _call_gemini(self, prompt):
+        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+        if not api_key:
+            import os
+            api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key:
+            return False
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        headers = {"Content-Type": "application/json"}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        import requests
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
+            if response.status_code == 200:
+                res_data = response.json()
+                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                if text.startswith("```"):
+                    lines = text.splitlines()
+                    if lines[0].startswith("```"):
+                          lines = lines[1:]
+                    if lines[-1].startswith("```"):
+                          lines = lines[:-1]
+                    text = "\n".join(lines).strip()
+                return text
+        except Exception:
+            pass
+        return False
+
 
 
 

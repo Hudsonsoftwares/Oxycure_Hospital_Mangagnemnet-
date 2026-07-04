@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- OP Document Views -->
+    <record id="view_hospital_op_document_tree" model="ir.ui.view">
+        <field name="name">hospital.op.document.tree</field>
+        <field name="model">hospital.op.document</field>
+        <field name="arch" type="xml">
+            <list string="OP Documents">
+                <field name="name"/>
+                <field name="document_type" widget="badge" decoration-info="document_type == 'medical_certificate'" decoration-warning="document_type == 'referral_letter'" decoration-success="document_type == 'fitness_certificate'"/>
+                <field name="date_generated"/>
+                <button name="action_print_pdf" string="Print PDF" type="object" icon="fa-print" class="btn-secondary"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hospital_op_document_form" model="ir.ui.view">
+        <field name="name">hospital.op.document.form</field>
+        <field name="model">hospital.op.document</field>
+        <field name="arch" type="xml">
+            <form string="OP Document">
+                <header>
+                    <button name="action_print_pdf" string="Print PDF" type="object" class="oe_highlight" icon="fa-print"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="document_type" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="op_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="date_generated" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Document Editor">
+                            <field name="content" widget="html" options="{'style-inline': true}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Medical Certificate Wizard View -->
+    <record id="view_hospital_medical_certificate_wizard_form" model="ir.ui.view">
+        <field name="name">hospital.medical.certificate.wizard.form</field>
+        <field name="model">hospital.medical.certificate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Medical Leave Certificate">
+                <group>
+                    <group>
+                        <field name="rest_days"/>
+                        <field name="purpose"/>
+                    </group>
+                    <group>
+                        <field name="op_id" invisible="1"/>
+                    </group>
+                </group>
+                <group string="Additional Notes / Diagnosis">
+                    <field name="additional_notes" placeholder="Enter optional clinical symptoms or remarks to guide the AI generation..." nolabel="1"/>
+                </group>
+                <footer>
+                    <button name="action_generate" string="Generate with AI 🧠" type="object" class="oe_highlight"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Referral Letter Wizard View -->
+    <record id="view_hospital_referral_letter_wizard_form" model="ir.ui.view">
+        <field name="name">hospital.referral.letter.wizard.form</field>
+        <field name="model">hospital.referral.letter.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Referral Letter">
+                <group>
+                    <group>
+                        <field name="refer_to"/>
+                        <field name="reason"/>
+                    </group>
+                    <group>
+                        <field name="op_id" invisible="1"/>
+                    </group>
+                </group>
+                <group string="Additional Notes">
+                    <field name="additional_notes" placeholder="Enter clinical summaries or instructions to guide the referral details..." nolabel="1"/>
+                </group>
+                <footer>
+                    <button name="action_generate" string="Generate with AI 🧠" type="object" class="oe_highlight"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Fitness Certificate Wizard View -->
+    <record id="view_hospital_fitness_certificate_wizard_form" model="ir.ui.view">
+        <field name="name">hospital.fitness.certificate.wizard.form</field>
+        <field name="model">hospital.fitness.certificate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Medical Fitness Certificate">
+                <group>
+                    <group>
+                        <field name="fit_from_date"/>
+                    </group>
+                    <group>
+                        <field name="op_id" invisible="1"/>
+                    </group>
+                </group>
+                <group string="Additional Notes">
+                    <field name="additional_notes" placeholder="Enter physical recovery remarks to guide the AI..." nolabel="1"/>
+                </group>
+                <footer>
+                    <button name="action_generate" string="Generate with AI 🧠" type="object" class="oe_highlight"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- QWeb PDF Report Definition -->
+    <record id="action_report_op_document" model="ir.actions.report">
+        <field name="name">OP Visit Document</field>
+        <field name="model">hospital.op.document</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hospital_management.report_op_document_template</field>
+        <field name="report_file">hospital_management.report_op_document_template</field>
+        <field name="binding_model_id" ref="model_hospital_op_document"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_op_document_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px;">
+                        <!-- Clinic Letterhead Header -->
+                        <div style="border-bottom: 3px double #004d40; padding-bottom: 10px; margin-bottom: 30px;">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="width: 70%;">
+                                        <h2 style="color: #004d40; margin: 0; font-weight: bold; font-size: 28px;">NOVACARE MEDICAL CENTER</h2>
+                                        <p style="margin: 3px 0; font-size: 13px; color: #555;">123 Healthcare Boulevard, Suite 500</p>
+                                        <p style="margin: 3px 0; font-size: 13px; color: #555;">Phone: +1-555-0199 | Email: contact@novacare.com</p>
+                                    </td>
+                                    <td style="width: 30%; text-align: right; vertical-align: middle;">
+                                        <span style="font-weight: bold; font-size: 14px; text-transform: uppercase; color: #004d40; border: 1.5px solid #004d40; padding: 6px 12px; border-radius: 4px;">OFFICIAL MEDICAL RECORD</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Date & Patient Info -->
+                        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+                            <table style="width: 100%; font-size: 14px;">
+                                <tr>
+                                    <td style="width: 15%; font-weight: bold; color: #333;">Patient:</td>
+                                    <td style="width: 45%; color: #555;"><span t-field="o.patient_id.name"/></td>
+                                    <td style="width: 15%; font-weight: bold; color: #333;">Date:</td>
+                                    <td style="width: 25%; color: #555;"><span t-field="o.date_generated" t-options='{"widget": "date"}'/></td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #333;">OP Ref:</td>
+                                    <td style="color: #555;"><span t-field="o.op_id.op_number"/></td>
+                                    <td style="font-weight: bold; color: #333;">Age / Gender:</td>
+                                    <td style="color: #555;"><span t-field="o.patient_id.age"/> / <span t-field="o.patient_id.gender" style="text-transform: capitalize;"/></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Document Body Content -->
+                        <div style="font-size: 15px; line-height: 1.8; color: #222; min-height: 350px; padding: 10px 0;">
+                            <t t-out="o.content"/>
+                        </div>
+
+                        <!-- Footer Signatures -->
+                        <div style="margin-top: 50px; border-top: 1px solid #ddd; padding-top: 20px;">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="width: 60%;">
+                                        <p style="font-size: 11px; color: #777; margin: 0;">This document is generated by NovaCare HMS and holds official status under medical regulations.</p>
+                                    </td>
+                                    <td style="width: 40%; text-align: right; vertical-align: bottom;">
+                                        <div style="display: inline-block; text-align: left; font-size: 12px; line-height: 1.5; color: #333; max-width: 250px;">
+                                            <div style="height: 35px;"></div>
+                                            <p style="margin: 0; font-weight: bold; border-top: 1px solid #333; padding-top: 5px;">Dr. <span t-field="o.op_id.doctor_id.name"/></p>
+                                            <p style="margin: 0; color: #555; font-size: 11px;" t-if="o.op_id.doctor_id.specialization"><span t-field="o.op_id.doctor_id.specialization"/></p>
+                                            <p style="margin: 0; color: #555; font-size: 11px;" t-if="o.op_id.doctor_id.medical_registration_no">Reg No: <span t-field="o.op_id.doctor_id.medical_registration_no"/></p>
+                                            <p style="margin: 0; color: #555; font-size: 11px;" t-if="o.op_id.doctor_id.mobile or o.op_id.doctor_id.phone">Tel: <span t-out="o.op_id.doctor_id.mobile or o.op_id.doctor_id.phone"/></p>
+                                            <p style="margin: 0; color: #555; font-size: 11px;" t-if="o.op_id.doctor_id.email">Email: <span t-field="o.op_id.doctor_id.email"/></p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

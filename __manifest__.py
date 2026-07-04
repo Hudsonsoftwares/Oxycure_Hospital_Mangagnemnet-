@@ -49,6 +49,8 @@ Custom Hospital Management Module
         'views/billing_report.xml',
         'views/pharmacy_views.xml',
         'views/dashboard_views.xml',
+        'views/op_queue_views.xml',
+        'views/op_document_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

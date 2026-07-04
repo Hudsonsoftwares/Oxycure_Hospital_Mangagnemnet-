@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Smart OP Queue Dashboard Form View -->
+    <record id="view_hospital_op_queue_dashboard_form" model="ir.ui.view">
+        <field name="name">hospital.op.queue.dashboard.form</field>
+        <field name="model">hospital.op.queue.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Smart OP Queue" create="false" edit="false" delete="false">
+                <sheet>
+                    <!-- Gorgeous AI stats, recommendations & insights cards banner -->
+                    <field name="dashboard_html" widget="html" readonly="1" nolabel="1"/>
+                    
+                    <separator string="🧠 AI-Prioritized Patient Queue (Real-Time)"/>
+                    <p class="text-muted" style="margin-bottom: 16px;">
+                        The queue is sorted dynamically based on triage priority score (highest first), custom manual bypass overrides, and check-in time.
+                    </p>
+
+                    <!-- Interactive Patients Queue List -->
+                    <field name="line_ids" readonly="1" nolabel="1">
+                        <list create="false" edit="false" delete="false" duplicate="false" default_order="queue_sequence asc, ai_priority_score desc, token_number asc">
+                            <field name="token_number" string="Token #"/>
+                            <field name="patient_id"/>
+                            <field name="waiting_time"/>
+                            <field name="ai_priority_label" widget="badge" 
+                                   decoration-danger="ai_priority == 'emergency'" 
+                                   decoration-warning="ai_priority == 'high'" 
+                                   decoration-primary="ai_priority == 'medium'" 
+                                   decoration-success="ai_priority == 'low'"/>
+                            <field name="ai_confidence" string="Confidence (%)" widget="integer"/>
+                            <field name="ai_wait_prediction" string="Est. Doctor Time"/>
+                            <field name="ai_alerts" widget="badge" 
+                                   decoration-danger="ai_alerts != 'None'" 
+                                   decoration-muted="ai_alerts == 'None'"/>
+                            <field name="doctor_id"/>
+                            <field name="status" widget="badge" 
+                                   decoration-info="status == 'waiting'" 
+                                   decoration-warning="status == 'checked_in'" 
+                                   decoration-success="status == 'consultation'"/>
+                            
+                            <!-- AI and Operations Quick Actions -->
+                            <button name="action_explain_triage" type="object" string="Why?" icon="fa-question-circle" class="btn-info" title="Explain AI Triage Reasoning"/>
+                            <button name="action_call_next" type="object" string="Call Next" icon="fa-play" class="btn-success" title="Call Patient to Consultation Room" invisible="status == 'consultation'"/>
+                            <button name="action_move_to_top" type="object" string="Move to Top" icon="fa-arrow-up" class="btn-primary" title="Override queue order &amp; push to top" invisible="status not in ['waiting', 'checked_in']"/>
+                            <button name="action_notify_nurse" type="object" string="Notify Nurse" icon="fa-bell" class="btn-secondary" title="Alert nurse station"/>
+                            <button name="action_print_token" type="object" string="Print" icon="fa-print" class="btn-secondary" title="Re-print Token slip"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Smart OP Queue Dashboard Server Action -->
+    <record id="action_hospital_op_queue_server" model="ir.actions.server">
+        <field name="name">Smart OP Queue</field>
+        <field name="model_id" ref="model_hospital_op_queue_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_queue_dashboard()
+        </field>
+    </record>
+
+    <!-- Smart OP Queue Menu Item -->
+    <menuitem id="menu_hospital_smart_op_queue"
+              name="Smart OP Queue"
+              parent="menu_hospital_root"
+              action="action_hospital_op_queue_server"
+              sequence="16"/>
+</odoo>

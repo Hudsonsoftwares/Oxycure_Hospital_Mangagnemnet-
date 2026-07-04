@@ -46,6 +46,12 @@
                             <field name="token_number"/>
                             <field name="visit_type"/>
                         </group>
+                        <group string="Queue Timeline">
+                            <field name="check_in_time" readonly="1"/>
+                            <field name="consultation_start_time" readonly="1"/>
+                            <field name="consultation_end_time" readonly="1"/>
+                            <field name="total_waiting_time" readonly="1"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Triage &amp; Vitals" name="triage_vitals">
@@ -126,6 +132,36 @@
                             <group string="Follow-up Information">
                                 <field name="follow_up_required"/>
                                 <field name="follow_up_date" invisible="not follow_up_required" required="follow_up_required"/>
+                            </group>
+                        </page>
+                        <page string="Documents 📁" name="documents">
+                            <separator string="Generated Clinical Documents"/>
+                            <field name="document_ids">
+                                <list create="false" edit="false">
+                                    <field name="name"/>
+                                    <field name="document_type"/>
+                                    <field name="date_generated"/>
+                                    <button name="action_print_pdf" string="Print PDF" type="object" icon="fa-print" class="btn-secondary"/>
+                                </list>
+                            </field>
+                            <group string="🧠 AI Documents Generator">
+                                <div style="display: flex; gap: 12px; align-items: center; padding-top: 10px;">
+                                    <button name="action_wizard_medical_certificate" 
+                                            string="✨ Generate Medical Leave" 
+                                            type="object" 
+                                            class="btn-primary" 
+                                            icon="fa-file-text-o"/>
+                                    <button name="action_wizard_referral_letter" 
+                                            string="✨ Generate Referral Letter" 
+                                            type="object" 
+                                            class="btn-primary" 
+                                            icon="fa-envelope-o"/>
+                                    <button name="action_wizard_fitness_certificate" 
+                                            string="✨ Generate Fitness Certificate" 
+                                            type="object" 
+                                            class="btn-primary" 
+                                            icon="fa-trophy"/>
+                                </div>
                             </group>
                         </page>
                         <page string="Actions &amp; Milestones" name="actions_milestones">

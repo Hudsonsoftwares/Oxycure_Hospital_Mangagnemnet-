@@ -29,3 +29,8 @@ access_hospital_pharmacy_sale,hospital.pharmacy.sale,model_hospital_pharmacy_sal
 access_hospital_pharmacy_sale_line,hospital.pharmacy.sale.line,model_hospital_pharmacy_sale_line,,1,1,1,1
 access_hospital_pharmacy_alert,hospital.pharmacy.alert,model_hospital_pharmacy_alert,,1,1,1,1
 access_hospital_lab_equipment,hospital.lab.equipment,model_hospital_lab_equipment,,1,1,1,1
+access_hospital_op_queue_dashboard,hospital.op.queue.dashboard,model_hospital_op_queue_dashboard,,1,1,1,1
+access_hospital_op_document,hospital.op.document,model_hospital_op_document,,1,1,1,1
+access_hospital_medical_certificate_wizard,hospital.medical.certificate.wizard,model_hospital_medical_certificate_wizard,,1,1,1,1
+access_hospital_referral_letter_wizard,hospital.referral.letter.wizard,model_hospital_referral_letter_wizard,,1,1,1,1
+access_hospital_fitness_certificate_wizard,hospital.fitness.certificate.wizard,model_hospital_fitness_certificate_wizard,,1,1,1,1
