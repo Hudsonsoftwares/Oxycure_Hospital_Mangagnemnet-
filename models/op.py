@@ -1,6 +1,6 @@
 import re
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 class HospitalOp(models.Model):
     _name = "hospital.op"
@@ -491,4 +491,183 @@ class HospitalOp(models.Model):
                 ])
                 if op_count >= 70:
                     raise ValidationError(_("Doctor %s has reached the daily limit of 70 OP visits for this date.") % record.doctor_id.name)
+
+    conversation_transcript = fields.Text(
+        string="Conversation Transcript",
+        help="Speech-to-text transcript of the interaction between doctor and patient"
+    )
+
+    interaction_summary = fields.Text(
+        string="Interaction Summary"
+    )
+
+    def action_generate_interaction_summary(self):
+        self.ensure_one()
+        # Get Gemini API key from System Parameters
+        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+
+        # Fallback to environment variable
+        if not api_key:
+            import os
+            api_key = os.environ.get('GEMINI_API_KEY')
+
+        if not api_key:
+            raise UserError(_(
+                "Gemini API Key is not configured. Please set 'hospital_management.gemini_api_key' "
+                "in System Parameters (Settings -> Technical -> System Parameters) or set the GEMINI_API_KEY environment variable."
+            ))
+
+        # Check if conversation transcript is present
+        if not self.conversation_transcript:
+            raise UserError(_("Please record or enter the conversation transcript first."))
+
+        # Prepare summary inputs
+        patient_name = self.patient_id.name or "N/A"
+        patient_age = self.patient_id.age or "N/A"
+        patient_gender = self.patient_id.gender or "N/A"
+        doctor_name = self.doctor_id.name or "N/A"
+
+        prompt = (
+            f"You are a professional medical assistant and scribe. Analyze the following transcribed conversation between "
+            f"Doctor {doctor_name} and Patient {patient_name} ({patient_age} years old, {patient_gender}):\n\n"
+            f"Transcribed Conversation:\n"
+            f"{self.conversation_transcript}\n\n"
+            f"Generate two summaries:\n"
+            f"1. A detailed structured clinical summary focusing on: Chief Complaint/Complaints, Findings/Diagnosis, Treatment Plan, and Follow-up Instructions.\n"
+            f"2. A brief, concise summary of exactly three sentences summarizing the interaction, suitable for clinical notes.\n\n"
+            f"You MUST return the output as a valid JSON object with the following structure:\n"
+            f"{{\n"
+            f"  \"full_summary\": \"<detailed clinical summary here>\",\n"
+            f"  \"brief_notes\": \"<exact 3-sentence summary here>\"\n"
+            f"}}\n"
+        )
+
+        models_to_try = [
+            "gemini-2.5-flash",
+            "gemini-3.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash-lite",
+            "gemini-flash-latest",
+            "gemini-pro-latest"
+        ]
+
+        last_error = None
+        success = False
+
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        headers = {"Content-Type": "application/json"}
+
+        import requests
+        for model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=30)
+                if response.status_code == 200:
+                    res_data = response.json()
+                    try:
+                        import json
+                        response_text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                        if response_text.startswith("```"):
+                            lines = response_text.splitlines()
+                            if lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines[-1].startswith("```"):
+                                lines = lines[:-1]
+                            response_text = "\n".join(lines).strip()
+                        
+                        result = json.loads(response_text)
+                        self.interaction_summary = result.get('full_summary', '')
+                        self.clinical_notes = result.get('brief_notes', '')
+                        success = True
+                        break
+                    except Exception as e:
+                        last_error = _("Failed to parse Gemini response as JSON: %s") % str(e)
+                else:
+                    try:
+                        last_error = response.json().get('error', {}).get('message', response.text)
+                    except Exception:
+                        last_error = response.text
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+
+        if not success:
+            raise UserError(_("Failed to generate summary using Gemini API: %s") % (last_error or "Unknown error"))
+
+    @api.model
+    def translate_text_to_english(self, text):
+        if not text:
+            return ""
+
+        # Get Gemini API key from System Parameters
+        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
+        if not api_key:
+            import os
+            api_key = os.environ.get('GEMINI_API_KEY')
+
+        if not api_key:
+            raise UserError(_("Gemini API Key is not configured. Please set 'hospital_management.gemini_api_key' in System Parameters."))
+
+        prompt = (
+            f"You are a professional medical translator. Translate the following Malayalam transcript of a doctor-patient interaction "
+            f"directly into fluent, professional medical English. Return ONLY the translated English text, without any additional explanations, introduction, or formatting:\n\n"
+            f"{text}"
+        )
+
+        models_to_try = [
+            "gemini-2.5-flash",
+            "gemini-3.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash-lite",
+            "gemini-flash-latest",
+            "gemini-pro-latest"
+        ]
+
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
+            }]
+        }
+        headers = {"Content-Type": "application/json"}
+
+        import requests
+        last_error = None
+        for model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=30)
+                if response.status_code == 200:
+                    res_data = response.json()
+                    try:
+                        translated_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                        return translated_text.strip()
+                    except (KeyError, IndexError):
+                        last_error = _("Received an unexpected response structure from Gemini API.")
+                else:
+                    try:
+                        last_error = response.json().get('error', {}).get('message', response.text)
+                    except Exception:
+                        last_error = response.text
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+
+        raise UserError(_("Failed to translate transcript using Gemini API: %s") % (last_error or "Unknown error"))
+
+
 

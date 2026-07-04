@@ -50,6 +50,13 @@ Custom Hospital Management Module
         'views/pharmacy_views.xml',
         'views/dashboard_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'hospital_management/static/src/components/stt_recorder/stt_recorder.js',
+            'hospital_management/static/src/components/stt_recorder/stt_recorder.xml',
+            'hospital_management/static/src/components/stt_recorder/stt_recorder.css',
+        ],
+    },
     'installable': True,
     'application': True,
     'auto_install': False,

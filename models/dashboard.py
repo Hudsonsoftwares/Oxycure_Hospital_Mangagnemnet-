@@ -85,13 +85,31 @@ class HospitalDashboard(models.TransientModel):
             ])
             low_stock_count = len(low_stock_medicines)
             
-            # 10. Expiring medicines (expiry within 30 days)
-            thirty_days_later = fields.Date.today() + timedelta(days=30)
-            expiring_medicines = self.env['hospital.medicine'].search([
-                ('expiry_date', '!=', False),
+            # 10. Expired/Expiring medicine batches
+            today_date = fields.Date.today()
+            expired_batches = self.env['hospital.medicine.batch'].search([
+                ('qty_remaining', '>', 0),
+                ('expiry_date', '<', today_date)
+            ])
+            expired_count = len(expired_batches)
+
+            thirty_days_later = today_date + timedelta(days=30)
+            expiring_batches = self.env['hospital.medicine.batch'].search([
+                ('qty_remaining', '>', 0),
+                ('expiry_date', '>=', today_date),
                 ('expiry_date', '<=', thirty_days_later)
             ])
-            expiring_count = len(expiring_medicines)
+            expiring_count = len(expiring_batches)
+
+            expired_list_str = "\n".join([
+                f"- {b.medicine_id.name} (Batch: {b.name}, Qty: {b.qty_remaining}, Expired On: {b.expiry_date})"
+                for b in expired_batches
+            ]) or "None"
+
+            expiring_list_str = "\n".join([
+                f"- {b.medicine_id.name} (Batch: {b.name}, Qty: {b.qty_remaining}, Expires On: {b.expiry_date})"
+                for b in expiring_batches
+            ]) or "None"
 
             # 11. AI Insight via Gemini API
             ai_insight = "OxyCure AI Insight is analyzing hospital database..."
@@ -119,8 +137,9 @@ class HospitalDashboard(models.TransientModel):
                                         f"- Total Revenue: ${total_revenue:.2f}\n"
                                         f"- Pending Payments: {pending_payments_count} (${pending_payments_amount:.2f})\n"
                                         f"- Low Stock Medicines: {low_stock_count}\n"
-                                        f"- Expiring Medicines: {expiring_count}\n\n"
-                                        f"Provide a brief, concise, and professional operational insight (2-3 sentences max) summarizing hospital performance, highlighting any urgent concerns (e.g. low stock, pending payments, or high patient-to-doctor ratio), and recommending an action."
+                                        f"- Expired Medicine Batches (stock > 0):\n{expired_list_str}\n"
+                                        f"- Expiring Medicine Batches (next 30 days, stock > 0):\n{expiring_list_str}\n\n"
+                                        f"Provide a brief, concise, and professional operational insight (3-4 sentences max) summarizing hospital performance, highlighting any urgent concerns (e.g. low stock, pending payments, or high patient-to-doctor ratio), and explicitly calling out the specific expired or expiring medicines that need attention and recommending what action to take (e.g. disposal or prioritizing dispensing)."
                                     )
                                 }
                             ]
@@ -162,6 +181,78 @@ class HospitalDashboard(models.TransientModel):
                     ai_insight = f"Failed to connect to AI engine: {str(e)}"
             else:
                 ai_insight = "AI Insight is unavailable. Please configure the Gemini API Key in system parameters."
+
+            # Build Expired Batches Table
+            if expired_batches:
+                expired_rows = ""
+                for b in expired_batches:
+                    expired_rows += f"""
+                    <tr style="border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+                        <td style="padding: 10px 4px; font-weight: 500;">{b.medicine_id.name}</td>
+                        <td style="padding: 10px 4px; color: #4b5563;">{b.name}</td>
+                        <td style="padding: 10px 4px; text-align: right; font-weight: 600; color: #ef4444;">{b.qty_remaining}</td>
+                        <td style="padding: 10px 4px; text-align: right; color: #ef4444;">{b.expiry_date.strftime('%Y-%m-%d')}</td>
+                    </tr>
+                    """
+                expired_table_html = f"""
+                <div style="max-height: 240px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">
+                                <th style="padding: 8px 4px;">Medicine</th>
+                                <th style="padding: 8px 4px;">Batch</th>
+                                <th style="padding: 8px 4px; text-align: right;">Qty</th>
+                                <th style="padding: 8px 4px; text-align: right;">Expired Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {expired_rows}
+                        </tbody>
+                    </table>
+                </div>
+                """
+            else:
+                expired_table_html = """
+                <div style="padding: 20px; text-align: center; color: #10b981; font-weight: 500; font-size: 13px; background: #f0fdf4; border-radius: 8px; border: 1px dashed #bbf7d0;">
+                    ✓ No expired medicines in stock.
+                </div>
+                """
+
+            # Build Expiring Batches Table
+            if expiring_batches:
+                expiring_rows = ""
+                for b in expiring_batches:
+                    expiring_rows += f"""
+                    <tr style="border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+                        <td style="padding: 10px 4px; font-weight: 500;">{b.medicine_id.name}</td>
+                        <td style="padding: 10px 4px; color: #4b5563;">{b.name}</td>
+                        <td style="padding: 10px 4px; text-align: right; font-weight: 600; color: #d97706;">{b.qty_remaining}</td>
+                        <td style="padding: 10px 4px; text-align: right; color: #d97706;">{b.expiry_date.strftime('%Y-%m-%d')}</td>
+                    </tr>
+                    """
+                expiring_table_html = f"""
+                <div style="max-height: 240px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">
+                                <th style="padding: 8px 4px;">Medicine</th>
+                                <th style="padding: 8px 4px;">Batch</th>
+                                <th style="padding: 8px 4px; text-align: right;">Qty</th>
+                                <th style="padding: 8px 4px; text-align: right;">Expiry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {expiring_rows}
+                        </tbody>
+                    </table>
+                </div>
+                """
+            else:
+                expiring_table_html = """
+                <div style="padding: 20px; text-align: center; color: #10b981; font-weight: 500; font-size: 13px; background: #f0fdf4; border-radius: 8px; border: 1px dashed #bbf7d0;">
+                    ✓ No medicines expiring in the next 30 days.
+                </div>
+                """
 
             # Constructing Premium Dashboard HTML
             html = f"""
@@ -259,8 +350,29 @@ class HospitalDashboard(models.TransientModel):
 
                 </div>
 
+                <!-- Expiry Alerts Panels -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 24px;">
+                    
+                    <!-- Expired Medicines Table -->
+                    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; border-top: 6px solid #ef4444;">
+                        <h3 style="margin: 0 0 16px 0; color: #b91c1c; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">⚠️</span> Expired Medicines ({expired_count})
+                        </h3>
+                        {expired_table_html}
+                    </div>
+
+                    <!-- Expiring Medicines Table -->
+                    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; border-top: 6px solid #f59e0b;">
+                        <h3 style="margin: 0 0 16px 0; color: #b45309; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">⏳</span> Expiring Soon (Next 30 Days) ({expiring_count})
+                        </h3>
+                        {expiring_table_html}
+                    </div>
+                    
+                </div>
+
                 <!-- Footer / Refresh Note -->
-                <div style="text-align: right; font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 12px;">
+                <div style="text-align: right; font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 24px;">
                     🔄 Automatically updates in real-time.
                 </div>
 

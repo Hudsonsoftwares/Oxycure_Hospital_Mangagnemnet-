@@ -114,6 +114,15 @@
                                     <field name="ai_summary" readonly="1"/>
                                 </list>
                             </field>
+                             <group string="Doctor-Patient Speech to Text &amp; AI Summary">
+                                 <field name="conversation_transcript" widget="stt_recorder" nolabel="1" colspan="2"/>
+                                 <button name="action_generate_interaction_summary" 
+                                         type="object" 
+                                         string="Generate AI Summary from Transcript" 
+                                         class="btn-primary mb-3" 
+                                         icon="fa-magic"/>
+                                 <field name="interaction_summary" placeholder="AI-generated summary of the conversation will appear here..." readonly="1" colspan="2"/>
+                             </group>
                             <group string="Follow-up Information">
                                 <field name="follow_up_required"/>
                                 <field name="follow_up_date" invisible="not follow_up_required" required="follow_up_required"/>

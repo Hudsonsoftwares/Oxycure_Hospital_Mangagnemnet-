@@ -1,0 +1,26 @@
+@keyframes stt-pulse-animation {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+.stt-recorder-container .badge.bg-danger {
+    animation: stt-pulse-animation 2s infinite;
+}
+
+.stt-recorder-container textarea {
+    resize: vertical;
+    border-color: #dee2e6;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.stt-recorder-container textarea:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}

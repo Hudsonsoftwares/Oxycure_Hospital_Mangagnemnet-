@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="hospital_management.STTRecorderField">
+        <div class="stt-recorder-container border rounded p-3 bg-light">
+            <!-- Header and status -->
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fa fa-microphone text-primary fs-4 me-2"/>
+                    <h5 class="m-0 text-dark fw-bold">Doctor-Patient Interaction Speech Recorder</h5>
+                </div>
+                <!-- Status indicator -->
+                <div class="d-flex align-items-center gap-2">
+                    <span t-if="state.isTranslating" class="badge bg-info text-white d-flex align-items-center gap-1">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Translating to English...
+                    </span>
+                    <span t-if="state.isListening" class="badge bg-danger animate-pulse d-flex align-items-center gap-1">
+                        <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+                        Listening...
+                    </span>
+                    <span t-elif="!state.isTranslating" class="badge bg-secondary">Idle</span>
+                </div>
+            </div>
+
+            <!-- Error alert if any -->
+            <div t-if="state.error" class="alert alert-danger p-2 mb-3 small d-flex justify-content-between align-items-center">
+                <span><i class="fa fa-exclamation-triangle me-1"/> <t t-out="state.error"/></span>
+                <button type="button" class="btn-close" aria-label="Close" t-on-click="() => state.error = null"></button>
+            </div>
+
+            <!-- Not supported alert -->
+            <div t-if="!state.supported" class="alert alert-warning p-2 mb-3 small">
+                <i class="fa fa-warning me-1"/> Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="row g-2 mb-3 bg-white p-2 rounded border shadow-sm align-items-center justify-content-between">
+                <!-- Recording buttons & Language select -->
+                <div class="col-auto d-flex gap-2 align-items-center">
+                    <button t-if="!state.isListening" 
+                            type="button" 
+                            class="btn btn-danger btn-sm d-flex align-items-center gap-1" 
+                            t-on-click="startListening" 
+                            t-att-disabled="!state.supported || state.isTranslating">
+                        <i class="fa fa-microphone"/> Start Listening
+                    </button>
+                    <button t-else="" 
+                            type="button" 
+                            class="btn btn-warning text-dark btn-sm d-flex align-items-center gap-1" 
+                            t-on-click="stopListening">
+                        <i class="fa fa-stop"/> Stop Listening
+                    </button>
+                    
+                    <!-- Language selector -->
+                    <select class="form-select form-select-sm w-auto" 
+                            t-on-change="onLanguageChange" 
+                            t-model="state.selectedLanguage"
+                            t-att-disabled="state.isListening || state.isTranslating">
+                        <option value="en-US">English (US)</option>
+                        <option value="ml-IN">Malayalam (മലയാളം)</option>
+                    </select>
+
+                    <button type="button" 
+                            class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" 
+                            t-on-click="clearTranscript" 
+                            t-att-disabled="!props.record.data[props.name] || state.isTranslating">
+                        <i class="fa fa-trash"/> Clear
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <span class="small text-muted">
+                        <i class="fa fa-info-circle me-1"/> 
+                        <t t-if="state.selectedLanguage === 'ml-IN'">
+                            Speaks Malayalam, will automatically translate to English.
+                        </t>
+                        <t t-else="">
+                            Speaks English, records as English transcript.
+                        </t>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Transcript Text Area -->
+            <div class="position-relative">
+                <textarea class="form-control bg-white font-monospace" 
+                          rows="6" 
+                          t-att-id="props.id" 
+                          t-att-readonly="props.readonly || state.isTranslating" 
+                          t-att-value="props.record.data[props.name] || ''" 
+                          t-on-input="(ev) => props.record.update({ [props.name]: ev.target.value })" 
+                          placeholder="Transcribed conversation text will appear here. You can also edit this text manually..."/>
+            </div>
+        </div>
+    </t>
+</templates>
