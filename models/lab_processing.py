@@ -265,3 +265,190 @@ class HospitalLabProcessing(models.Model):
 
         if not success:
             raise UserError(_("Gemini API Error (Tried multiple models): %s") % last_error)
+
+    def action_quick_collect(self):
+        for record in self:
+            if record.status != 'pending':
+                continue
+            # Determine appropriate sample type based on test name
+            test_name = (record.test_id.name or "").lower()
+            sample_type = 'blood'
+            if 'urine' in test_name:
+                sample_type = 'urine'
+            elif 'swab' in test_name or 'covid' in test_name:
+                sample_type = 'swab'
+            elif 'saliva' in test_name:
+                sample_type = 'saliva'
+            
+            record.write({
+                'status': 'collected',
+                'sample_type': sample_type,
+                'sample_details': f'Standard {sample_type.capitalize()} Sample'
+            })
+        return True
+
+    def action_quick_start(self):
+        for record in self:
+            if record.status != 'collected':
+                continue
+            # Search for active equipment for this test
+            eq = self.env['hospital.lab.equipment'].search([
+                ('test_ids', '=', record.test_id.id),
+                ('status', '=', 'active')
+            ], limit=1)
+            if not eq:
+                # If no matching equipment, find any active equipment
+                eq = self.env['hospital.lab.equipment'].search([('status', '=', 'active')], limit=1)
+            
+            record.write({
+                'status': 'testing',
+                'equipment_id': eq.id if eq else False
+            })
+        return True
+
+    def action_quick_complete(self):
+        self.ensure_one()
+        return {
+            'name': 'Lab Test Results & Findings',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.lab.processing',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'new',
+        }
+
+
+class HospitalLabQueueDashboard(models.TransientModel):
+    _name = "hospital.lab.queue.dashboard"
+    _description = "AI Smart Lab Queue Dashboard"
+    
+    dashboard_html = fields.Html(string="Dashboard HTML", compute="_compute_dashboard_html")
+    active_processing_ids = fields.Many2many(
+        "hospital.lab.processing",
+        string="Active Lab Tests",
+        compute="_compute_active_processings"
+    )
+    
+    def _compute_active_processings(self):
+        for record in self:
+            active = self.env['hospital.lab.processing'].search([
+                ('status', 'in', ['pending', 'collected', 'testing'])
+            ])
+            
+            def sort_key(lp):
+                status_weight = {'testing': 0, 'collected': 1, 'pending': 2}.get(lp.status, 3)
+                prio_val = lp.op_id.ai_priority or lp.op_id.priority or 'low'
+                prio_weight = {'emergency': 0, 'high': 1, 'urgent': 1, 'medium': 2, 'semi_urgent': 2, 'low': 3, 'normal': 3}.get(prio_val, 3)
+                
+                test_name = (lp.test_id.name or "").lower()
+                if 'troponin' in test_name:
+                    test_weight = 0
+                elif 'dengue' in test_name or 'ns1' in test_name or 'malaria' in test_name:
+                    test_weight = 1
+                elif 'cbc' in test_name or 'crp' in test_name or 'wbc' in test_name:
+                    test_weight = 2
+                else:
+                    test_weight = 3
+                    
+                created_id = lp.id
+                return (status_weight, prio_weight, test_weight, created_id)
+                
+            record.active_processing_ids = active.sorted(key=sort_key)
+
+    def _compute_dashboard_html(self):
+        for record in self:
+            active_tests = self.env['hospital.lab.processing'].search([
+                ('status', 'in', ['pending', 'collected', 'testing'])
+            ])
+            
+            total_active = len(active_tests)
+            testing_count = len(active_tests.filtered(lambda t: t.status == 'testing'))
+            collected_count = len(active_tests.filtered(lambda t: t.status == 'collected'))
+            pending_count = len(active_tests.filtered(lambda t: t.status == 'pending'))
+            
+            critical_count = len(active_tests.filtered(
+                lambda t: (t.op_id.ai_priority or t.op_id.priority) == 'emergency' or 'troponin' in (t.test_id.name or "").lower()
+            ))
+            
+            running_tests = active_tests.filtered(lambda t: t.status == 'testing')
+            running_str = "None (Ready for next sample)"
+            if running_tests:
+                running_str = f"🧪 {running_tests[0].test_id.name} ({running_tests[0].patient_id.name})"
+                
+            next_tests = record.active_processing_ids.filtered(lambda t: t.status != 'testing')
+            next_str = "No pending tests"
+            if next_tests:
+                next_str = f"⏳ {next_tests[0].test_id.name} ({next_tests[0].patient_id.name})"
+                
+            record.dashboard_html = f"""
+<div class="smart-lab-dashboard" style="font-family: 'Outfit', 'Inter', sans-serif; background: #0b1329; padding: 24px; border-radius: 16px; color: #f8fafc; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px;">
+        <div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                <span>🔬</span> NovaCare Smart Lab Queue Dashboard
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 14px; color: #94a3b8;">AI-optimized specimen processing order and queue sequence manager</p>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 6px 12px; border-radius: 9999px; font-size: 12px; color: #38bdf8; font-weight: 600;">
+            🤖 AI Assisted Dispatch
+        </div>
+    </div>
+    
+    <!-- Stats Cards Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid #1e293b; border-radius: 12px; padding: 16px;">
+            <span style="color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase;">Active Queue</span>
+            <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>👥</span> {total_active} <span style="font-size: 14px; font-weight: 400; color: #64748b;">Tests</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 12px; color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <span>🚨</span> {critical_count} Critical Priority
+            </div>
+        </div>
+        
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 16px;">
+            <span style="color: #10b981; font-size: 12px; font-weight: 600; text-transform: uppercase;">Now Running</span>
+            <div style="font-size: 15px; font-weight: 600; color: #f1f5f9; margin-top: 14px; word-break: break-all;">
+                {running_str}
+            </div>
+            <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                Testing Status: {testing_count} in progress
+            </div>
+        </div>
+        
+        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 16px;">
+            <span style="color: #f59e0b; font-size: 12px; font-weight: 600; text-transform: uppercase;">Next Up (Recommended)</span>
+            <div style="font-size: 15px; font-weight: 600; color: #f1f5f9; margin-top: 14px; word-break: break-all;">
+                {next_str}
+            </div>
+            <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                Samples: {collected_count} collected, {pending_count} pending
+            </div>
+        </div>
+    </div>
+    
+    <div style="background: rgba(30, 41, 59, 0.3); border: 1px solid #1e293b; border-radius: 12px; padding: 16px;">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+            <span>🤖</span> AI Lab Operations Assistant
+        </h3>
+        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+            <li>Priority sequencing is calculated dynamically from ESI patient emergency status and clinical test urgencies (Troponin > Infection > Routine).</li>
+            <li>Always collect samples for pending tests before processing routine tests.</li>
+            <li>Click <strong>Start Testing</strong> to automatically allocate compatibly mapped equipment and begin test runs.</li>
+        </ul>
+    </div>
+</div>
+"""
+
+    @api.model
+    def action_open_lab_dashboard(self):
+        record = self.create({})
+        return {
+            'name': 'Smart Lab Queue Dashboard',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.lab.queue.dashboard',
+            'view_mode': 'form',
+            'res_id': record.id,
+            'target': 'current',
+        }

@@ -51,6 +51,7 @@ Custom Hospital Management Module
         'views/dashboard_views.xml',
         'views/op_queue_views.xml',
         'views/op_document_views.xml',
+        'views/lab_queue_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

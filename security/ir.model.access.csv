@@ -34,3 +34,4 @@ access_hospital_op_document,hospital.op.document,model_hospital_op_document,,1,1
 access_hospital_medical_certificate_wizard,hospital.medical.certificate.wizard,model_hospital_medical_certificate_wizard,,1,1,1,1
 access_hospital_referral_letter_wizard,hospital.referral.letter.wizard,model_hospital_referral_letter_wizard,,1,1,1,1
 access_hospital_fitness_certificate_wizard,hospital.fitness.certificate.wizard,model_hospital_fitness_certificate_wizard,,1,1,1,1
+access_hospital_lab_queue_dashboard,hospital.lab.queue.dashboard,model_hospital_lab_queue_dashboard,,1,1,1,1

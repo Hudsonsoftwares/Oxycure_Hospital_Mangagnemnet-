@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lab Queue Dashboard Form View -->
+    <record id="view_hospital_lab_queue_dashboard_form" model="ir.ui.view">
+        <field name="name">hospital.lab.queue.dashboard.form</field>
+        <field name="model">hospital.lab.queue.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="AI Smart Lab Queue" create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="dashboard_html" readonly="1" colspan="2"/>
+                    <separator string="🧪 Active AI-Prioritized Processing Queue"/>
+                    <field name="active_processing_ids" nolabel="1" colspan="2">
+                        <list create="false" delete="false" edit="false" decoration-warning="status == 'pending'" decoration-info="status == 'collected'" decoration-primary="status == 'testing'">
+                            <field name="patient_id"/>
+                            <field name="op_id"/>
+                            <field name="test_id"/>
+                            <field name="status" widget="badge" decoration-warning="status == 'pending'" decoration-info="status == 'collected'" decoration-primary="status == 'testing'"/>
+                            <button name="action_quick_collect" 
+                                    string="Collect Sample 🩸" 
+                                    type="object" 
+                                    class="btn-warning btn-sm" 
+                                    invisible="status != 'pending'"/>
+                            <button name="action_quick_start" 
+                                    string="Start Testing ⚙️" 
+                                    type="object" 
+                                    class="btn-info btn-sm text-white" 
+                                    invisible="status != 'collected'"/>
+                            <button name="action_quick_complete" 
+                                    string="Complete 📝" 
+                                    type="object" 
+                                    class="btn-success btn-sm text-white" 
+                                    invisible="status != 'testing'"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Lab Queue Dashboard Server Action -->
+    <record id="action_hospital_lab_queue_dashboard_open" model="ir.actions.server">
+        <field name="name">Smart Lab Queue</field>
+        <field name="model_id" ref="model_hospital_lab_queue_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_lab_dashboard()
+        </field>
+    </record>
+
+    <!-- Lab Queue Dashboard Menu Item -->
+    <menuitem id="menu_hospital_lab_queue_dashboard"
+              name="Smart Lab Queue 🧠"
+              parent="menu_hospital_laboratory"
+              action="action_hospital_lab_queue_dashboard_open"
+              sequence="10"/>
+</odoo>
