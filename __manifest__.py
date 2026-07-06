@@ -46,12 +46,16 @@ Custom Hospital Management Module
         'views/lab_operations_views.xml',
         'views/lab_equipment_views.xml',
         'views/billing_views.xml',
+        'views/billing_tv_views.xml',
+        'views/billing_dashboard_views.xml',
         'views/billing_report.xml',
         'views/pharmacy_views.xml',
         'views/dashboard_views.xml',
         'views/op_queue_views.xml',
         'views/op_document_views.xml',
         'views/lab_queue_views.xml',
+        'views/pharmacy_queue_views.xml',
+        'views/op_tv_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

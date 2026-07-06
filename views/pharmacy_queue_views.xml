@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pharmacist Dashboard Form View -->
+    <record id="view_hospital_pharmacy_dashboard_form" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.dashboard.form</field>
+        <field name="model">hospital.pharmacy.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Pharmacy Operations Dashboard" create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="dashboard_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
+                    <separator string="📦 Active Dispensing Queue"/>
+                    <field name="active_request_ids" nolabel="1" colspan="2">
+                        <list create="false" delete="false" edit="false" decoration-warning="status == 'paid'" decoration-info="status == 'preparing'" decoration-success="status == 'ready'">
+                            <field name="pharmacy_queue_token" string="Token" font_weight="bold"/>
+                            <field name="patient_id"/>
+                            <field name="doctor_id"/>
+                            <field name="request_datetime" string="Time"/>
+                            <field name="status" widget="badge" decoration-warning="status == 'paid'" decoration-info="status == 'preparing'" decoration-success="status == 'ready'"/>
+                            <button name="action_start_preparing" 
+                                    string="Start Preparing 🛠️" 
+                                    type="object" 
+                                    class="btn-info btn-sm text-white" 
+                                    invisible="status != 'paid'"/>
+                            <button name="action_mark_ready" 
+                                    string="Mark Ready ✅" 
+                                    type="object" 
+                                    class="btn-success btn-sm text-white" 
+                                    invisible="status != 'preparing'"/>
+                            <button name="action_dispense" 
+                                    string="Dispense / Collect 💊" 
+                                    type="object" 
+                                    class="btn-primary btn-sm text-white" 
+                                    invisible="status != 'ready'"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Pharmacist Dashboard Server Action -->
+    <record id="action_hospital_pharmacy_dashboard_open" model="ir.actions.server">
+        <field name="name">Pharmacy Dashboard</field>
+        <field name="model_id" ref="model_hospital_pharmacy_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_pharmacy_dashboard()
+        </field>
+    </record>
+
+    <!-- Pharmacist Dashboard Menu Item -->
+    <menuitem id="menu_hospital_pharmacy_dashboard"
+              name="Pharmacy Queue Dashboard 🧠"
+              parent="menu_hospital_pharmacy_parent"
+              action="action_hospital_pharmacy_dashboard_open"
+              sequence="5"/>
+
+    <!-- Patient TV View Form View -->
+    <record id="view_hospital_pharmacy_tv_form" model="ir.ui.view">
+        <field name="name">hospital.pharmacy.tv.form</field>
+        <field name="model">hospital.pharmacy.tv</field>
+        <field name="arch" type="xml">
+            <form string="Patient Display TV" create="false" edit="false" delete="false">
+                <sheet style="max-width: 100%;">
+                    <field name="tv_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Patient TV Server Action -->
+    <record id="action_hospital_pharmacy_tv_open" model="ir.actions.server">
+        <field name="name">Pharmacy TV Display</field>
+        <field name="model_id" ref="model_hospital_pharmacy_tv"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_tv_screen()
+        </field>
+    </record>
+
+    <!-- Patient TV Menu Item -->
+    <menuitem id="menu_hospital_pharmacy_tv"
+              name="Patient Queue TV 📺"
+              parent="menu_hospital_pharmacy_parent"
+              action="action_hospital_pharmacy_tv_open"
+              sequence="6"/>
+</odoo>

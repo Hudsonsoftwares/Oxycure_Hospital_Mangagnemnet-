@@ -35,3 +35,8 @@ access_hospital_medical_certificate_wizard,hospital.medical.certificate.wizard,m
 access_hospital_referral_letter_wizard,hospital.referral.letter.wizard,model_hospital_referral_letter_wizard,,1,1,1,1
 access_hospital_fitness_certificate_wizard,hospital.fitness.certificate.wizard,model_hospital_fitness_certificate_wizard,,1,1,1,1
 access_hospital_lab_queue_dashboard,hospital.lab.queue.dashboard,model_hospital_lab_queue_dashboard,,1,1,1,1
+access_hospital_pharmacy_dashboard,hospital.pharmacy.dashboard,model_hospital_pharmacy_dashboard,,1,1,1,1
+access_hospital_pharmacy_tv,hospital.pharmacy.tv,model_hospital_pharmacy_tv,,1,1,1,1
+access_hospital_op_tv,hospital.op.tv,model_hospital_op_tv,,1,1,1,1
+access_hospital_billing_tv,hospital.billing.tv,model_hospital_billing_tv,,1,1,1,1
+access_hospital_billing_dashboard,hospital.billing.dashboard,model_hospital_billing_dashboard,,1,1,1,1

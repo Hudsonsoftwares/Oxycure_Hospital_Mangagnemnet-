@@ -1508,5 +1508,118 @@ class HospitalFitnessCertificateWizard(models.TransientModel):
         return False
 
 
+class HospitalOpTv(models.TransientModel):
+    _name = "hospital.op.tv"
+    _description = "OP Waiting Room Display TV"
+    
+    tv_html = fields.Html(string="TV Display HTML", compute="_compute_tv_html")
+    
+    def _compute_tv_html(self):
+        for record in self:
+            doctors = self.env['hospital.doctor'].search([])
+            
+            today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = fields.Datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            active_ops = self.env['hospital.op'].search([
+                ('registration_datetime', '>=', today_start),
+                ('registration_datetime', '<=', today_end),
+                ('status', 'in', ['waiting', 'checked_in', 'consultation'])
+            ], order="token_number asc, id asc")
+            
+            doctor_blocks = []
+            for doc in doctors:
+                doc_ops = active_ops.filtered(lambda op: op.doctor_id.id == doc.id)
+                if not doc_ops:
+                    continue
+                
+                serving_ops = doc_ops.filtered(lambda op: op.status == 'consultation').sorted(key=lambda op: op.id, reverse=True)
+                serving_str = "Available / No Patient"
+                if serving_ops:
+                    serving_str = f"Token #{serving_ops[0].token_number} - {serving_ops[0].patient_id.name}"
+                
+                waiting_ops = doc_ops.filtered(lambda op: op.status in ('waiting', 'checked_in'))
+                
+                waiting_list = []
+                for op in waiting_ops:
+                    prio_val = op.ai_priority or op.priority or 'normal'
+                    dot_color = {'emergency': '#ef4444', 'high': '#f97316', 'urgent': '#f97316', 'medium': '#eab308', 'semi_urgent': '#eab308', 'normal': '#10b981', 'low': '#10b981'}.get(prio_val, '#10b981')
+                    status_text = "CHECKED IN" if op.status == 'checked_in' else "WAITING"
+                    
+                    waiting_list.append(f"""
+<div style="background: rgba(30, 41, 59, 0.4); border: 1.5px solid #334155; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+    <strong style="font-size: 20px; color: #f1f5f9;">Token #{op.token_number}</strong>
+    <span style="font-size: 14px; color: #cbd5e1; font-weight: 500;">{op.patient_id.name}</span>
+    <span style="font-size: 11px; background: rgba(255,255,255,0.05); color: {dot_color}; padding: 3px 8px; border-radius: 9999px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+        <span style="width: 5px; height: 5px; background: {dot_color}; border-radius: 50%; display: inline-block;"></span> {status_text}
+    </span>
+</div>
+""")
+                
+                waiting_html = "".join(waiting_list) if waiting_list else '<div style="color: #64748b; font-size: 13px; text-align: center; padding: 20px;">No patients waiting</div>'
+                
+                dept_name = doc.department_id.name or "OP Consultation"
+                
+                doctor_blocks.append(f"""
+<div style="background: rgba(15, 23, 42, 0.6); border: 1.5px solid #1e293b; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+    <!-- Doctor Header -->
+    <div style="border-bottom: 1.5px solid #334155; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #38bdf8;">Dr. {doc.name}</h3>
+            <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">{dept_name}</span>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 4px 10px; border-radius: 9999px; font-size: 11px; color: #38bdf8; font-weight: 600;">
+            Room {doc.id}
+        </div>
+    </div>
+    
+    <!-- Serving Now -->
+    <div style="background: rgba(16, 185, 129, 0.05); border: 2px solid #10b981; border-radius: 12px; padding: 14px; margin-bottom: 16px; text-align: center; box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.1);">
+        <span style="font-size: 11px; color: #10b981; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">🟢 Currently Serving</span>
+        <strong style="font-size: 20px; color: #f8fafc; display: block; word-break: break-all;">{serving_str}</strong>
+    </div>
+    
+    <!-- Waiting Queue -->
+    <div>
+        <span style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">⏳ Next Patients in Queue</span>
+        <div class="waiting-list-block" style="max-height: 250px; overflow-y: auto;">
+            {waiting_html}
+        </div>
+    </div>
+</div>
+""")
+            
+            blocks_html = "".join(doctor_blocks) if doctor_blocks else '<div style="color: #64748b; text-align: center; padding: 60px; font-size: 16px;">No patients registered or checked in today.</div>'
+            
+            record.tv_html = f"""
+<div class="op-tv-screen" style="font-family: 'Outfit', 'Inter', sans-serif; background: #090d16; border-radius: 20px; padding: 32px; box-shadow: inset 0 0 100px rgba(0,0,0,0.8), 0 20px 50px -12px rgba(0,0,0,0.5); min-height: 580px; color: #f8fafc;">
+    <!-- Head Banner -->
+    <div style="text-align: center; margin-bottom: 36px; border-bottom: 2px solid #1e293b; padding-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #38bdf8; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 12px;">
+            <span>🏥</span> NOVACARE CLINIC CONSULTATION STATUS
+        </h1>
+        <p style="margin: 6px 0 0 0; font-size: 15px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">Please proceed to your consultation room when your token is called</p>
+    </div>
+    
+    <!-- Grid of Doctors -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+        {blocks_html}
+    </div>
+</div>
+"""
+
+    @api.model
+    def action_open_tv_screen(self):
+        record = self.create({})
+        return {
+            'name': 'OP Consultation TV Display',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.op.tv',
+            'view_mode': 'form',
+            'res_id': record.id,
+            'target': 'current',
+        }
+
+
 
 

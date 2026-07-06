@@ -25,8 +25,10 @@
             <form string="Pharmacy Dispensing Request" create="false">
                 <header>
                     <button name="action_send_to_billing" type="object" string="Send to Billing" class="oe_highlight" invisible="status != 'draft'"/>
-                    <button name="action_dispense" type="object" string="Dispense Medicines" class="oe_highlight" invisible="status != 'paid'"/>
-                    <field name="status" widget="statusbar" statusbar_visible="draft,to_pay,paid,dispensed"/>
+                    <button name="action_start_preparing" type="object" string="Start Preparing 🛠️" class="btn-info text-white oe_highlight" invisible="status != 'paid'"/>
+                    <button name="action_mark_ready" type="object" string="Mark Ready ✅" class="btn-success text-white oe_highlight" invisible="status != 'preparing'"/>
+                    <button name="action_dispense" type="object" string="Dispense Medicines 💊" class="oe_highlight" invisible="status != 'ready'"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,to_pay,paid,preparing,ready,dispensed"/>
                 </header>
                 <sheet>
                     <widget name="web_ribbon" title="Dispensed" bg_color="text-bg-success" invisible="status != 'dispensed'"/>
@@ -79,7 +81,10 @@
                 <field name="doctor_id"/>
                 <field name="billing_id"/>
                 <separator/>
-                <filter string="Pending" name="pending" domain="[('status', '=', 'pending')]"/>
+                <filter string="Awaiting Payment" name="to_pay" domain="[('status', '=', 'to_pay')]"/>
+                <filter string="Queued" name="queued" domain="[('status', '=', 'paid')]"/>
+                <filter string="Preparing" name="preparing" domain="[('status', '=', 'preparing')]"/>
+                <filter string="Ready for Collection" name="ready" domain="[('status', '=', 'ready')]"/>
                 <filter string="Dispensed" name="dispensed" domain="[('status', '=', 'dispensed')]"/>
                 <filter string="Cancelled" name="cancelled" domain="[('status', '=', 'cancelled')]"/>
                 <group expand="0" string="Group By">

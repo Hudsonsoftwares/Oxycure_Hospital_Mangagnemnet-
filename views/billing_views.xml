@@ -109,10 +109,16 @@
         </field>
     </record>
 
-    <!-- Billing Menu Item -->
-    <menuitem id="menu_hospital_billing"
+    <!-- Billing Parent Menu -->
+    <menuitem id="menu_hospital_billing_parent"
               name="Billing &amp; Payments"
               parent="menu_hospital_root"
-              action="action_hospital_billing"
               sequence="30"/>
+
+    <!-- Invoices & Payments Sub-menu -->
+    <menuitem id="menu_hospital_billing"
+              name="Invoices &amp; Payments"
+              parent="menu_hospital_billing_parent"
+              action="action_hospital_billing"
+              sequence="10"/>
 </odoo>

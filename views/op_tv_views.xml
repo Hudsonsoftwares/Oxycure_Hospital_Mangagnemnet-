@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- OP Patient TV View Form View -->
+    <record id="view_hospital_op_tv_form" model="ir.ui.view">
+        <field name="name">hospital.op.tv.form</field>
+        <field name="model">hospital.op.tv</field>
+        <field name="arch" type="xml">
+            <form string="OP Consultation TV Display" create="false" edit="false" delete="false">
+                <sheet style="max-width: 100%;">
+                    <field name="tv_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- OP Patient TV Server Action -->
+    <record id="action_hospital_op_tv_open" model="ir.actions.server">
+        <field name="name">Consultation TV Display</field>
+        <field name="model_id" ref="model_hospital_op_tv"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_tv_screen()
+        </field>
+    </record>
+
+    <!-- OP Patient TV Menu Item -->
+    <menuitem id="menu_hospital_op_tv"
+              name="OP Consultation TV 📺"
+              parent="menu_hospital_root"
+              action="action_hospital_op_tv_open"
+              sequence="17"/>
+</odoo>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Billing TV Form View -->
+    <record id="view_hospital_billing_tv_form" model="ir.ui.view">
+        <field name="name">hospital.billing.tv.form</field>
+        <field name="model">hospital.billing.tv</field>
+        <field name="arch" type="xml">
+            <form string="Billing Display TV" create="false" edit="false" delete="false">
+                <sheet style="max-width: 100%;">
+                    <field name="tv_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Billing TV Server Action -->
+    <record id="action_hospital_billing_tv_open" model="ir.actions.server">
+        <field name="name">Billing TV Display</field>
+        <field name="model_id" ref="model_hospital_billing_tv"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_tv_screen()
+        </field>
+    </record>
+
+    <!-- Billing Queue TV Menu Item -->
+    <menuitem id="menu_hospital_billing_tv"
+              name="Billing Queue TV 📺"
+              parent="menu_hospital_billing_parent"
+              action="action_hospital_billing_tv_open"
+              sequence="20"/>
+</odoo>

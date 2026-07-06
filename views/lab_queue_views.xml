@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <form string="AI Smart Lab Queue" create="false" edit="false" delete="false">
                 <sheet>
-                    <field name="dashboard_html" readonly="1" colspan="2"/>
+                    <field name="dashboard_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
                     <separator string="🧪 Active AI-Prioritized Processing Queue"/>
                     <field name="active_processing_ids" nolabel="1" colspan="2">
                         <list create="false" delete="false" edit="false" decoration-warning="status == 'pending'" decoration-info="status == 'collected'" decoration-primary="status == 'testing'">

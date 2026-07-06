@@ -225,3 +225,260 @@ class HospitalBillingLine(models.Model):
     def _compute_subtotal(self):
         for record in self:
             record.subtotal = record.price * record.qty
+
+
+class HospitalBillingTv(models.TransientModel):
+    _name = "hospital.billing.tv"
+    _description = "Billing Queue Display TV"
+
+    tv_html = fields.Html(string="TV Display HTML", compute="_compute_tv_html")
+
+    def _compute_tv_html(self):
+        for record in self:
+            # Get today's start and end datetimes
+            today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = fields.Datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Find unpaid invoices (status = draft)
+            unpaid_invoices = self.env['hospital.billing'].search([
+                ('payment_status', '=', 'draft')
+            ], order="id asc")
+            
+            # Find paid invoices processed today
+            paid_invoices = self.env['hospital.billing'].search([
+                ('payment_status', '=', 'paid'),
+                ('write_date', '>=', today_start),
+                ('write_date', '<=', today_end)
+            ], order="write_date desc", limit=10)
+            
+            unpaid_list = []
+            for inv in unpaid_invoices:
+                # Resolve token
+                token_val = False
+                if inv.op_id:
+                    token_val = inv.op_id.token_number
+                elif inv.appointment_id:
+                    token_val = inv.appointment_id.token_number
+                
+                token_str = f"T-{token_val:03d}" if token_val else f"INV-{inv.id:03d}"
+                patient_name = inv.patient_id.name or "Patient"
+                doctor_name = inv.doctor_id.name or "Doctor"
+                amount = inv.amount_total
+                billing_type_desc = "Consultation/Lab" if inv.billing_type == 'op' else "Pharmacy"
+                
+                # Colors based on billing type
+                type_badge_style = "background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2);" if inv.billing_type == 'op' else "background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2);"
+                
+                unpaid_list.append(f"""
+<div style="background: rgba(30, 41, 59, 0.4); border: 1.5px solid #334155; padding: 16px 20px; border-radius: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <strong style="font-size: 24px; color: #f1f5f9;">{token_str}</strong>
+        <span style="font-size: 18px; color: #e2e8f0; font-weight: 600;">${amount:.2f}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #94a3b8;">
+        <span>👤 {patient_name}</span>
+        <span>👨‍⚕️ Dr. {doctor_name}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+        <span style="font-size: 11px; {type_badge_style} padding: 3px 8px; border-radius: 9999px; font-weight: 600;">
+            {billing_type_desc}
+        </span>
+        <span style="font-size: 11px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); padding: 3px 8px; border-radius: 9999px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            <span style="width: 5px; height: 5px; background: #f59e0b; border-radius: 50%; display: inline-block; animation: pulse_tv 1.5s infinite;"></span> AWAITING PAYMENT
+        </span>
+    </div>
+</div>
+""")
+
+            paid_list = []
+            for inv in paid_invoices:
+                token_val = False
+                if inv.op_id:
+                    token_val = inv.op_id.token_number
+                elif inv.appointment_id:
+                    token_val = inv.appointment_id.token_number
+                
+                token_str = f"T-{token_val:03d}" if token_val else f"INV-{inv.id:03d}"
+                patient_name = inv.patient_id.name or "Patient"
+                amount = inv.amount_total
+                
+                paid_list.append(f"""
+<div style="background: rgba(16, 185, 129, 0.05); border: 2px solid #10b981; padding: 18px 24px; border-radius: 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 8px 16px -4px rgba(16, 185, 129, 0.1);">
+    <div>
+        <strong style="font-size: 26px; color: #10b981; display: block; margin-bottom: 4px;">{token_str}</strong>
+        <span style="font-size: 16px; color: #cbd5e1; font-weight: 500;">{patient_name}</span>
+    </div>
+    <div style="text-align: right;">
+        <span style="font-size: 20px; color: #f8fafc; font-weight: 700; display: block; margin-bottom: 6px;">${amount:.2f}</span>
+        <span style="font-size: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1.5px solid rgba(16, 185, 129, 0.3); padding: 4px 12px; border-radius: 9999px; font-weight: 700; letter-spacing: 0.5px;">
+            🟢 PAID &amp; CLEARED
+        </span>
+    </div>
+</div>
+""")
+
+            unpaid_html = "".join(unpaid_list) if unpaid_list else '<div style="color: #64748b; text-align: center; padding: 40px; font-size: 15px;">No bills pending payment</div>'
+            paid_html = "".join(paid_list) if paid_list else '<div style="color: #64748b; text-align: center; padding: 40px; font-size: 15px;">No payments received today</div>'
+
+            record.tv_html = f"""
+<div class="billing-tv-screen" style="font-family: 'Outfit', 'Inter', sans-serif; background: #090d16; border-radius: 20px; padding: 32px; box-shadow: inset 0 0 100px rgba(0,0,0,0.8), 0 20px 50px -12px rgba(0,0,0,0.5); min-height: 580px; color: #f8fafc;">
+    <!-- Head Banner -->
+    <div style="text-align: center; margin-bottom: 36px; border-bottom: 2px solid #1e293b; padding-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #eab308; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 12px;">
+            <span>💳</span> NOVACARE BILLING &amp; PAYMENTS STATUS
+        </h1>
+        <p style="margin: 6px 0 0 0; font-size: 15px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">Please proceed to the billing counter when your token is listed</p>
+    </div>
+    
+    <!-- Split Screen Layout -->
+    <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 32px;">
+        <!-- Left: Awaiting Payment -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1.5px solid #1e293b; padding: 24px; border-radius: 16px;">
+            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px; font-weight: 700; color: #f59e0b; border-bottom: 1.5px solid #334155; padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span style="animation: pulse_tv 1.5s infinite; color: #f59e0b; display: inline-block;">⏳</span> AWAITING BILL PAYMENT
+            </h2>
+            <div class="unpaid-list" style="max-height: 480px; overflow-y: auto;">
+                {unpaid_html}
+            </div>
+        </div>
+        
+        <!-- Right: Recent Payments -->
+        <div style="background: rgba(15, 23, 42, 0.8); border: 2.5px solid #10b981; padding: 24px; border-radius: 18px; box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);">
+            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px; font-weight: 800; color: #10b981; border-bottom: 2px solid rgba(16, 185, 129, 0.2); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>✅</span> RECENTLY PAID
+            </h2>
+            <div class="paid-list" style="max-height: 480px; overflow-y: auto;">
+                {paid_html}
+            </div>
+        </div>
+    </div>
+    
+    <!-- CSS Animation Injection -->
+    <style>
+        @keyframes pulse_tv {{
+            0% {{ opacity: 0.3; }}
+            50% {{ opacity: 1; }}
+            100% {{ opacity: 0.3; }}
+        }}
+    </style>
+</div>
+"""
+
+    @api.model
+    def action_open_tv_screen(self):
+        record = self.create({})
+        return {
+            'name': 'Billing Queue TV Display',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.billing.tv',
+            'view_mode': 'form',
+            'res_id': record.id,
+            'target': 'current',
+        }
+
+
+class HospitalBillingDashboard(models.TransientModel):
+    _name = "hospital.billing.dashboard"
+    _description = "Billing Counter Control Center"
+
+    dashboard_html = fields.Html(string="Dashboard HTML", compute="_compute_dashboard_html")
+    active_billing_ids = fields.Many2many(
+        "hospital.billing",
+        string="Pending Payments List",
+        compute="_compute_active_billings"
+    )
+
+    def _compute_active_billings(self):
+        for record in self:
+            active = self.env['hospital.billing'].search([
+                ('payment_status', '=', 'draft')
+            ], order="id asc")
+            record.active_billing_ids = active
+
+    def _compute_dashboard_html(self):
+        for record in self:
+            # Unpaid/draft invoices
+            unpaid_invoices = self.env['hospital.billing'].search([
+                ('payment_status', '=', 'draft')
+            ])
+            
+            op_unpaid = unpaid_invoices.filtered(lambda r: r.billing_type == 'op')
+            pharmacy_unpaid = unpaid_invoices.filtered(lambda r: r.billing_type == 'medicine')
+            
+            op_count = len(op_unpaid)
+            op_total = sum(op_unpaid.mapped('amount_total'))
+            
+            pharmacy_count = len(pharmacy_unpaid)
+            pharmacy_total = sum(pharmacy_unpaid.mapped('amount_total'))
+            
+            # Paid today
+            today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = fields.Datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            paid_today = self.env['hospital.billing'].search([
+                ('payment_status', '=', 'paid'),
+                ('write_date', '>=', today_start),
+                ('write_date', '<=', today_end)
+            ])
+            
+            collected_count = len(paid_today)
+            collected_total = sum(paid_today.mapped('amount_total'))
+            
+            record.dashboard_html = f"""
+<div class="billing-dashboard" style="font-family: 'Outfit', 'Inter', sans-serif; background: #0f172a; padding: 24px; border-radius: 16px; color: #f8fafc; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px;">
+        <div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #eab308; display: flex; align-items: center; gap: 8px;">
+                <span>💳</span> NovaCare Billing &amp; Counter Control Center
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 14px; color: #94a3b8;">Real-time checkout, payments collection, and invoice clearance desk</p>
+        </div>
+        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.2); padding: 6px 12px; border-radius: 9999px; font-size: 12px; color: #eab308; font-weight: 600;">
+            ⚡ Payment Counter Mode
+        </div>
+    </div>
+    
+    <!-- Stats Cards Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+        <!-- Card 1: OP & Labs -->
+        <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 16px;">
+            <span style="color: #38bdf8; font-size: 12px; font-weight: 600; text-transform: uppercase;">Pending OP &amp; Labs</span>
+            <div style="font-size: 28px; font-weight: 700; color: #38bdf8; margin-top: 8px; display: flex; justify-content: space-between; align-items: baseline;">
+                <span>{op_count} <span style="font-size: 14px; font-weight: 400; color: #64748b;">Invoices</span></span>
+                <span style="font-size: 22px; color: #f1f5f9;">${op_total:.2f}</span>
+            </div>
+        </div>
+        
+        <!-- Card 2: Pharmacy / Medicine -->
+        <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 12px; padding: 16px;">
+            <span style="color: #c084fc; font-size: 12px; font-weight: 600; text-transform: uppercase;">Pending Pharmacy Bills</span>
+            <div style="font-size: 28px; font-weight: 700; color: #c084fc; margin-top: 8px; display: flex; justify-content: space-between; align-items: baseline;">
+                <span>{pharmacy_count} <span style="font-size: 14px; font-weight: 400; color: #64748b;">Invoices</span></span>
+                <span style="font-size: 22px; color: #f1f5f9;">${pharmacy_total:.2f}</span>
+            </div>
+        </div>
+        
+        <!-- Card 3: Total Collected Today -->
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 16px;">
+            <span style="color: #10b981; font-size: 12px; font-weight: 600; text-transform: uppercase;">Collected Today</span>
+            <div style="font-size: 28px; font-weight: 700; color: #10b981; margin-top: 8px; display: flex; justify-content: space-between; align-items: baseline;">
+                <span>{collected_count} <span style="font-size: 14px; font-weight: 400; color: #64748b;">Payments</span></span>
+                <span style="font-size: 24px; color: #f8fafc;">${collected_total:.2f}</span>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+    @api.model
+    def action_open_billing_dashboard(self):
+        record = self.create({})
+        return {
+            'name': 'Billing Counter Control Center',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.billing.dashboard',
+            'view_mode': 'form',
+            'res_id': record.id,
+            'target': 'current',
+        }

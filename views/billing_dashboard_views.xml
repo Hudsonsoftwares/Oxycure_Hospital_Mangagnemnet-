@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Billing Dashboard Form View -->
+    <record id="view_hospital_billing_dashboard_form" model="ir.ui.view">
+        <field name="name">hospital.billing.dashboard.form</field>
+        <field name="model">hospital.billing.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Billing Counter Dashboard" create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="dashboard_html" widget="html" readonly="1" nolabel="1" colspan="2"/>
+                    <separator string="⏳ Active Pending Invoices / checkout queue"/>
+                    <field name="active_billing_ids" nolabel="1" colspan="2">
+                        <list create="false" delete="false" edit="false" decoration-warning="billing_type == 'op'" decoration-info="billing_type == 'medicine'">
+                            <field name="name" string="Invoice #"/>
+                            <field name="billing_type" widget="badge" decoration-warning="billing_type == 'op'" decoration-info="billing_type == 'medicine'"/>
+                            <field name="patient_id"/>
+                            <field name="doctor_id"/>
+                            <field name="billing_date" string="Date"/>
+                            <field name="amount_total" string="Amount" widget="monetary" font_weight="bold"/>
+                            <field name="payment_status" widget="badge" decoration-warning="payment_status == 'draft'" decoration-success="payment_status == 'paid'"/>
+                            <button name="action_pay_bill" 
+                                    string="Register Payment ✅" 
+                                    type="object" 
+                                    class="btn-success btn-sm text-white" 
+                                    invisible="payment_status != 'draft'"/>
+                            <button name="action_print_invoice" 
+                                    string="Print Invoice 🖨️" 
+                                    type="object" 
+                                    class="btn-primary btn-sm text-white" 
+                                    invisible="payment_status == 'draft'"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Billing Dashboard Server Action -->
+    <record id="action_hospital_billing_dashboard_open" model="ir.actions.server">
+        <field name="name">Billing Counter Dashboard</field>
+        <field name="model_id" ref="model_hospital_billing_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = model.action_open_billing_dashboard()
+        </field>
+    </record>
+
+    <!-- Billing Dashboard Menu Item -->
+    <menuitem id="menu_hospital_billing_dashboard"
+              name="Billing Counter Dashboard 🧠"
+              parent="menu_hospital_billing_parent"
+              action="action_hospital_billing_dashboard_open"
+              sequence="5"/>
+</odoo>
