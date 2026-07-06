@@ -63,6 +63,7 @@
                                     <field name="experience"/>
                                     <field name="consultation_fee"/>
                                     <field name="user_id" options="{'no_create': True}"/>
+                                    <field name="signature" widget="image" options="{'size': [0, 90]}"/>
                                 </group>
                             </group>
                         </page>

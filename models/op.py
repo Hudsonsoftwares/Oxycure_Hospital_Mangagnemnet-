@@ -1286,67 +1286,85 @@ class HospitalMedicalCertificateWizard(models.TransientModel):
         ('travel', 'Travel Postponement'),
         ('other', 'Other')
     ], string="Purpose", default="sick_leave", required=True)
-    additional_notes = fields.Text(string="Additional Notes")
+    diagnosis = fields.Char(string="Diagnosis", required=True)
+    clinical_findings = fields.Text(string="Clinical Findings")
+    advice = fields.Text(string="Medical Advice & Instructions")
+    follow_up_date = fields.Date(string="Follow-up Date")
+    additional_notes = fields.Text(string="Additional Remarks")
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(HospitalMedicalCertificateWizard, self).default_get(fields_list)
+        active_id = self.env.context.get('active_id')
+        if active_id and self.env.context.get('active_model') == 'hospital.op':
+            op = self.env['hospital.op'].browse(active_id)
+            res.update({
+                'op_id': op.id,
+                'diagnosis': op.diagnosis or '',
+                'clinical_findings': op.clinical_notes or '',
+                'follow_up_date': op.follow_up_date or False,
+            })
+        elif 'op_id' in res and res.get('op_id'):
+            op = self.env['hospital.op'].browse(res.get('op_id'))
+            res.update({
+                'diagnosis': op.diagnosis or '',
+                'clinical_findings': op.clinical_notes or '',
+                'follow_up_date': op.follow_up_date or False,
+            })
+        return res
     
     def action_generate(self):
         self.ensure_one()
         op = self.op_id
         patient_name = op.patient_id.name
-        doctor_name = op.doctor_id.name
-        today = fields.Date.today().strftime('%d-%b-%Y')
+        patient_age = op.patient_id.age or "N/A"
+        patient_gender = op.patient_id.gender or "N/A"
+        patient_uhid = op.patient_id.patient_id or "N/A"
+        consultation_date = op.registration_datetime.strftime('%d-%b-%Y')
         
-        prompt = (
-            f"You are a clinical emergency doctor. Draft a formal, professional Medical Leave Certificate inside clean HTML (using tags like p, br, strong, blockquote):\n"
-            f"- Patient Name: {patient_name}\n"
-            f"- Doctor Name: Dr. {doctor_name}\n"
-            f"- Clinic: NovaCare Medical Center\n"
-            f"- Recommended Rest: {self.rest_days} days\n"
-            f"- Purpose: {self.purpose.replace('_', ' ').title()}\n"
-            f"- Doctor's Remarks: {self.additional_notes or 'None'}\n"
-            f"- Date of Issue: {today}\n\n"
-            f"Keep it concise, formal, and authoritative. Return ONLY the HTML content, without enclosing markdown blocks."
-        )
+        # Build follow-up section
+        follow_up_section = ""
+        if self.follow_up_date:
+            follow_up_section = f"<p><strong>Follow-up:</strong> The patient is advised to return for a follow-up consultation on <strong>{self.follow_up_date.strftime('%d-%b-%Y')}</strong>.</p>"
+            
+        # Build remarks section
+        remarks_section = ""
+        if self.additional_notes:
+            remarks_section = f"<p><strong>Additional Remarks:</strong><br/>{self.additional_notes}</p>"
+            
+        content = f"""
+        <p style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #0f172a; text-transform: uppercase;">Medical Leave Certificate</p>
         
-        content = self._call_gemini(prompt) or f"<p>This is to certify that <strong>{patient_name}</strong> is under the care of Dr. {doctor_name} and is recommended medical rest leave for {self.rest_days} days starting from {today} due to {self.purpose.replace('_', ' ').title()}.</p>"
+        <p>This is to certify that <strong>{patient_name}</strong>, a {patient_age}-year-old {patient_gender} (Patient ID: {patient_uhid}), was examined at our clinic on {consultation_date}.</p>
         
-        self.env['hospital.op.document'].create({
+        <p>The patient has been diagnosed with <strong>{self.diagnosis}</strong>. On clinical evaluation, the following findings were noted:</p>
+        <blockquote style="margin: 10px 0; padding: 10px 15px; border-left: 4px solid #0284c7; background-color: #f8fafc; font-style: italic;">
+            {self.clinical_findings or 'None'}
+        </blockquote>
+        
+        <p>In consequence of this illness, I consider that a period of absence from active duties/work is essential for recovery. Therefore, the patient is recommended medical leave and complete rest for <strong>{self.rest_days} days</strong>, starting from <strong>{consultation_date}</strong>.</p>
+        
+        <p><strong>Medical Advice &amp; Instructions:</strong></p>
+        <p>{self.advice or 'None'}</p>
+        
+        {follow_up_section}
+        {remarks_section}
+        """
+        
+        doc = self.env['hospital.op.document'].create({
             'op_id': op.id,
             'document_type': 'medical_certificate',
             'name': f"Medical Certificate - {patient_name}",
             'content': content
         })
-        return True
-
-    def _call_gemini(self, prompt):
-        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
-        if not api_key:
-            import os
-            api_key = os.environ.get('GEMINI_API_KEY')
-        if not api_key:
-            return False
-        
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
+        return {
+            'name': 'OP Visit Document',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.op.document',
+            'view_mode': 'form',
+            'res_id': doc.id,
+            'target': 'current',
         }
-        headers = {"Content-Type": "application/json"}
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        import requests
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=15)
-            if response.status_code == 200:
-                res_data = response.json()
-                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
-                if text.startswith("```"):
-                    lines = text.splitlines()
-                    if lines[0].startswith("```"):
-                          lines = lines[1:]
-                    if lines[-1].startswith("```"):
-                          lines = lines[:-1]
-                    text = "\n".join(lines).strip()
-                return text
-        except Exception:
-            pass
-        return False
 
 
 class HospitalReferralLetterWizard(models.TransientModel):
@@ -1354,89 +1372,127 @@ class HospitalReferralLetterWizard(models.TransientModel):
     _description = "Generate Referral Letter"
     
     op_id = fields.Many2one("hospital.op", string="OP Visit", required=True)
-    refer_to = fields.Char(string="Refer To (Specialist/Dept)", required=True, placeholder="e.g. Dr. Arun Kumar (Cardiologist)")
+    refer_to = fields.Char(string="Refer To (Specialist)", required=True, placeholder="e.g. Dr. Arun Kumar")
+    referred_hospital = fields.Char(string="Referred Hospital", placeholder="e.g. City Cardiology Center")
+    referred_department = fields.Char(string="Referred Department/Specialty", placeholder="e.g. Cardiology")
     reason = fields.Char(string="Reason for Referral", required=True, placeholder="e.g. Chest pain evaluation")
-    additional_notes = fields.Text(string="Additional Notes")
-    
+    clinical_summary = fields.Text(string="Clinical Summary")
+    investigation_findings = fields.Text(string="Investigation Findings")
+    current_medications = fields.Text(string="Current Medications")
+    special_instructions = fields.Text(string="Special Instructions")
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(HospitalReferralLetterWizard, self).default_get(fields_list)
+        active_id = self.env.context.get('active_id')
+        if active_id and self.env.context.get('active_model') == 'hospital.op':
+            op = self.env['hospital.op'].browse(active_id)
+            res.update({
+                'op_id': op.id,
+                'reason': op.chief_complaint or '',
+                'clinical_summary': op.clinical_notes or '',
+                'current_medications': op.current_medications or '',
+            })
+        elif 'op_id' in res and res.get('op_id'):
+            op = self.env['hospital.op'].browse(res.get('op_id'))
+            res.update({
+                'reason': op.chief_complaint or '',
+                'clinical_summary': op.clinical_notes or '',
+                'current_medications': op.current_medications or '',
+            })
+        return res
+        
     def action_generate(self):
         self.ensure_one()
         op = self.op_id
         patient_name = op.patient_id.name
-        age = op.patient_id.age or "N/A"
-        gender = op.patient_id.gender or "N/A"
-        
-        # Doctor details
-        doctor = op.doctor_id
-        doctor_name = doctor.name
-        doctor_email = doctor.email or "N/A"
-        doctor_phone = doctor.mobile or doctor.phone or "N/A"
-        doctor_specialization = doctor.specialization or "General Practice"
-        doctor_reg_no = doctor.medical_registration_no or "N/A"
+        patient_age = op.patient_id.age or "N/A"
+        patient_gender = op.patient_id.gender or "N/A"
+        patient_uhid = op.patient_id.patient_id or "N/A"
         today = fields.Date.today().strftime('%d-%b-%Y')
         
-        # Triage metrics
+        # Vitals
         temp = op.temperature or 'N/A'
         bp = op.blood_pressure or 'N/A'
         pulse = op.pulse_rate or 'N/A'
         spo2 = op.spo2 or 'N/A'
-        complaint = op.chief_complaint or 'N/A'
-        chronic = op.patient_id.chronic_diseases or 'None'
         
-        prompt = (
-            f"Draft a formal medical Referral Letter in clean HTML format (using p, br, strong, blockquote, ul, li):\n"
-            f"- Referring Doctor: Dr. {doctor_name} ({doctor_specialization}, Medical Reg No: {doctor_reg_no})\n"
-            f"- Referring Doctor Contact: Phone: {doctor_phone}, Email: {doctor_email}\n"
-            f"- Addressed Specialist: {self.refer_to}\n"
-            f"- Patient Name: {patient_name} (Age {age}, Gender {gender})\n"
-            f"- Date: {today}\n"
-            f"- Reason for Referral: {self.reason}\n"
-            f"- Chief Complaint: {complaint}\n"
-            f"- Vitals: Temp {temp} C, BP {bp}, Pulse {pulse} bpm, SpO2 {spo2}%\n"
-            f"- History: {chronic}\n"
-            f"- Additional Doctor Remarks: {self.additional_notes or 'None'}\n\n"
-            f"Draft a formal referral letter requesting specialized consultation, outlining the vitals and brief history. Make sure to display the referring doctor's name, specialization, contact information, and registration number prominently in the letter's footer/sign-off or header details. Output ONLY the HTML content, without enclosing markdown blocks."
-        )
+        referred_hospital_row = ""
+        if self.referred_hospital:
+            referred_hospital_row = f"<tr><td style='padding: 4px 0; font-weight: bold; color: #475569;'>Hospital:</td><td style='padding: 4px 0;'>{self.referred_hospital}</td></tr>"
+            
+        referred_dept_row = ""
+        if self.referred_department:
+            referred_dept_row = f"<tr><td style='padding: 4px 0; font-weight: bold; color: #475569;'>Specialty/Dept:</td><td style='padding: 4px 0;'>{self.referred_department}</td></tr>"
+            
+        investigations_section = ""
+        if self.investigation_findings:
+            investigations_section = f"<p><strong>Investigation &amp; Diagnostic Findings:</strong><br/>{self.investigation_findings}</p>"
+            
+        medications_section = ""
+        if self.current_medications:
+            medications_section = f"<p><strong>Current Medications:</strong><br/>{self.current_medications}</p>"
+            
+        instructions_section = ""
+        if self.special_instructions:
+            instructions_section = f"<p><strong>Special Instructions:</strong><br/>{self.special_instructions}</p>"
+            
+        content = f"""
+        <p style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #0f172a; text-transform: uppercase;">Medical Referral Letter</p>
         
-        content = self._call_gemini(prompt) or f"<p>Dear Specialist,</p><p>I am writing to refer patient <strong>{patient_name}</strong> for further evaluation regarding {self.reason}.</p>"
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+            <tr>
+                <td style="width: 15%; padding: 4px 0; font-weight: bold; color: #475569;">To:</td>
+                <td style="padding: 4px 0;"><strong>{self.refer_to}</strong></td>
+            </tr>
+            {referred_hospital_row}
+            {referred_dept_row}
+            <tr>
+                <td style="padding: 4px 0; font-weight: bold; color: #475569;">Re:</td>
+                <td style="padding: 4px 0;"><strong>{patient_name}</strong> (Age: {patient_age}, Gender: {patient_gender}, Patient ID: {patient_uhid})</td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0; font-weight: bold; color: #475569;">Reason:</td>
+                <td style="padding: 4px 0;">{self.reason}</td>
+            </tr>
+        </table>
         
-        self.env['hospital.op.document'].create({
+        <p>Dear Doctor,</p>
+        
+        <p>I am referring this patient to you for specialized management and further evaluation regarding <strong>{self.reason}</strong>.</p>
+        
+        <p><strong>Clinical Summary &amp; Presentation:</strong></p>
+        <p>{self.clinical_summary or 'None'}</p>
+        
+        <p><strong>Vital Signs during assessment:</strong></p>
+        <ul>
+            <li>Temperature: {temp} °C</li>
+            <li>Blood Pressure: {bp} mmHg</li>
+            <li>Pulse Rate: {pulse} bpm</li>
+            <li>Oxygen Saturation (SpO₂): {spo2} %</li>
+        </ul>
+        
+        {investigations_section}
+        {medications_section}
+        {instructions_section}
+        
+        <p>Thank you for your valuable clinical involvement. Please do not hesitate to contact me if you require any further information.</p>
+        """
+        
+        doc = self.env['hospital.op.document'].create({
             'op_id': op.id,
             'document_type': 'referral_letter',
             'name': f"Referral Letter - {patient_name}",
             'content': content
         })
-        return True
-
-    def _call_gemini(self, prompt):
-        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
-        if not api_key:
-            import os
-            api_key = os.environ.get('GEMINI_API_KEY')
-        if not api_key:
-            return False
-        
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
+        return {
+            'name': 'OP Visit Document',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.op.document',
+            'view_mode': 'form',
+            'res_id': doc.id,
+            'target': 'current',
         }
-        headers = {"Content-Type": "application/json"}
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        import requests
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=15)
-            if response.status_code == 200:
-                res_data = response.json()
-                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
-                if text.startswith("```"):
-                    lines = text.splitlines()
-                    if lines[0].startswith("```"):
-                          lines = lines[1:]
-                    if lines[-1].startswith("```"):
-                          lines = lines[:-1]
-                    text = "\n".join(lines).strip()
-                return text
-        except Exception:
-            pass
-        return False
 
 
 class HospitalFitnessCertificateWizard(models.TransientModel):
@@ -1445,67 +1501,75 @@ class HospitalFitnessCertificateWizard(models.TransientModel):
     
     op_id = fields.Many2one("hospital.op", string="OP Visit", required=True)
     fit_from_date = fields.Date(string="Fit to Resume Duties From", default=fields.Date.today, required=True)
-    additional_notes = fields.Text(string="Additional Notes")
-    
+    diagnosis = fields.Char(string="Diagnosis", required=True)
+    fitness_status = fields.Char(string="Fitness Status", default="Fit to resume all normal duties", required=True)
+    restrictions = fields.Text(string="Restrictions (if any)")
+    additional_notes = fields.Text(string="Additional Remarks")
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(HospitalFitnessCertificateWizard, self).default_get(fields_list)
+        active_id = self.env.context.get('active_id')
+        if active_id and self.env.context.get('active_model') == 'hospital.op':
+            op = self.env['hospital.op'].browse(active_id)
+            res.update({
+                'op_id': op.id,
+                'diagnosis': op.diagnosis or '',
+            })
+        elif 'op_id' in res and res.get('op_id'):
+            op = self.env['hospital.op'].browse(res.get('op_id'))
+            res.update({
+                'diagnosis': op.diagnosis or '',
+            })
+        return res
+        
     def action_generate(self):
         self.ensure_one()
         op = self.op_id
         patient_name = op.patient_id.name
-        doctor_name = op.doctor_id.name
-        today = fields.Date.today().strftime('%d-%b-%Y')
+        patient_age = op.patient_id.age or "N/A"
+        patient_gender = op.patient_id.gender or "N/A"
+        patient_uhid = op.patient_id.patient_id or "N/A"
+        op_number = op.op_number
         fit_date = self.fit_from_date.strftime('%d-%b-%Y')
         
-        prompt = (
-            f"Draft a formal medical Fitness Certificate inside clean HTML format (using p, br, strong):\n"
-            f"- Patient Name: {patient_name}\n"
-            f"- Doctor Name: Dr. {doctor_name}\n"
-            f"- Clinic: NovaCare Medical Center\n"
-            f"- Date fit to resume work/duties: {fit_date}\n"
-            f"- Additional Doctor Remarks: {self.additional_notes or 'None'}\n"
-            f"- Date of Issue: {today}\n\n"
-            f"Draft a formal fitness certificate declaring that the patient has recovered and is medically fit. Output ONLY the HTML content, without enclosing markdown blocks."
-        )
+        restrictions_section = ""
+        if self.restrictions:
+            restrictions_section = f"<p><strong>Clinical Restrictions / Accommodations:</strong><br/>{self.restrictions}</p>"
+            
+        remarks_section = ""
+        if self.additional_notes:
+            remarks_section = f"<p><strong>Additional Remarks:</strong><br/>{self.additional_notes}</p>"
+            
+        content = f"""
+        <p style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #0f172a; text-transform: uppercase;">Medical Fitness Certificate</p>
         
-        content = self._call_gemini(prompt) or f"<p>This is to certify that <strong>{patient_name}</strong> has been examined and is found medically and physically fit to resume work/duties starting from {fit_date}.</p>"
+        <p>This is to certify that I have clinically examined <strong>{patient_name}</strong> (Patient ID: {patient_uhid}, OP Number: {op_number}), age {patient_age}, gender {patient_gender}.</p>
         
-        self.env['hospital.op.document'].create({
+        <p>The patient was previously diagnosed with and treated for <strong>{self.diagnosis}</strong>.</p>
+        
+        <p>Based on my clinical examination today, I find the patient's recovery status to be: <strong>{self.fitness_status}</strong>.</p>
+        
+        <p>Consequently, the patient is declared medically and physically fit to resume normal duties/work starting from <strong>{fit_date}</strong>.</p>
+        
+        {restrictions_section}
+        {remarks_section}
+        """
+        
+        doc = self.env['hospital.op.document'].create({
             'op_id': op.id,
             'document_type': 'fitness_certificate',
             'name': f"Fitness Certificate - {patient_name}",
             'content': content
         })
-        return True
-
-    def _call_gemini(self, prompt):
-        api_key = self.env['ir.config_parameter'].sudo().get_param('hospital_management.gemini_api_key')
-        if not api_key:
-            import os
-            api_key = os.environ.get('GEMINI_API_KEY')
-        if not api_key:
-            return False
-        
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
+        return {
+            'name': 'OP Visit Document',
+            'type': 'ir.actions.act_window',
+            'res_model': 'hospital.op.document',
+            'view_mode': 'form',
+            'res_id': doc.id,
+            'target': 'current',
         }
-        headers = {"Content-Type": "application/json"}
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        import requests
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=15)
-            if response.status_code == 200:
-                res_data = response.json()
-                text = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
-                if text.startswith("```"):
-                    lines = text.splitlines()
-                    if lines[0].startswith("```"):
-                          lines = lines[1:]
-                    if lines[-1].startswith("```"):
-                          lines = lines[:-1]
-                    text = "\n".join(lines).strip()
-                return text
-        except Exception:
-            pass
-        return False
 
 
 class HospitalOpTv(models.TransientModel):

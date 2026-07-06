@@ -77,6 +77,10 @@ class HospitalDoctor(models.Model):
     joining_date = fields.Date(
         string="Joining Date"
     )
+    signature = fields.Image(
+        string="Doctor Signature",
+        help="Upload doctor's signature image to display on certificates and letters"
+    )
     user_id = fields.Many2one(
         "res.users",
         string="Odoo User",
